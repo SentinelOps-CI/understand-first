@@ -1,7 +1,5 @@
 # Understand-First (TTU Kit)
 
-[![CI](https://github.com/your-org/understand-first/workflows/Python%20CI/badge.svg)](https://github.com/your-org/understand-first/actions)
-
 **Generate understanding, not just code.** This toolkit helps teams reduce **Time To Understanding (TTU)** and **Time To First Safe Change (TTFSC)** with maps, traces, tours, contracts, and PR guardrails.
 
 <p align="center">

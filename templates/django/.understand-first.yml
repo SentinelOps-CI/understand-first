@@ -1,0 +1,193 @@
+# Django Project Template for Understand-First
+# ===========================================
+#
+# This template is optimized for Django web applications with models, views,
+# templates, and admin interfaces. It provides comprehensive analysis of Django
+# patterns and best practices.
+
+# Analysis Configuration
+hops: 3
+seeds: []
+
+# Project-specific seed presets for Django
+seeds_for:
+  # Core Django components
+  models:
+    - "*/models.py"
+    - "*/models/*.py"
+
+  views:
+    - "*/views.py"
+    - "*/views/*.py"
+    - "*/api_views.py"
+
+  urls:
+    - "*/urls.py"
+    - "*/urlpatterns.py"
+
+  admin:
+    - "*/admin.py"
+    - "*/admin/*.py"
+
+  forms:
+    - "*/forms.py"
+    - "*/forms/*.py"
+
+  serializers:
+    - "*/serializers.py"
+    - "*/serializers/*.py"
+
+  # API and REST framework
+  api:
+    - "*/api/*.py"
+    - "*/viewsets.py"
+    - "*/permissions.py"
+    - "*/filters.py"
+
+  # Business logic and services
+  services:
+    - "*/services.py"
+    - "*/services/*.py"
+    - "*/business_logic.py"
+    - "*/utils.py"
+
+  # Testing
+  tests:
+    - "*/test*.py"
+    - "*/tests.py"
+    - "*/test_*.py"
+    - "tests/*.py"
+
+  # Management commands
+  management:
+    - "*/management/commands/*.py"
+
+  # Signals and middleware
+  signals:
+    - "*/signals.py"
+    - "*/signals/*.py"
+
+  middleware:
+    - "*/middleware.py"
+    - "*/middleware/*.py"
+
+  # Common scenarios
+  bug:
+    - "*/models.py"
+    - "*/views.py"
+    - "*/admin.py"
+    - "*/forms.py"
+
+  feature:
+    - "*/models.py"
+    - "*/views.py"
+    - "*/urls.py"
+    - "*/forms.py"
+    - "*/templates/**/*.html"
+
+  api_development:
+    - "*/api/*.py"
+    - "*/serializers.py"
+    - "*/viewsets.py"
+    - "*/permissions.py"
+
+  performance:
+    - "*/models.py"
+    - "*/views.py"
+    - "*/queries.py"
+    - "*/cache.py"
+
+# Contract Configuration
+contracts_paths:
+  - "contracts/api_contracts.yaml"
+  - "contracts/model_contracts.yaml"
+
+# File Patterns
+include_patterns:
+  - "*.py"
+  - "*/templates/**/*.html"
+  - "*/static/**/*.js"
+  - "*/static/**/*.css"
+
+exclude_patterns:
+  - "**/__pycache__/**"
+  - "**/migrations/**"
+  - "**/venv/**"
+  - "**/env/**"
+  - "**/.git/**"
+  - "**/node_modules/**"
+  - "**/staticfiles/**"
+  - "**/media/**"
+  - "**/logs/**"
+  - "**/*.pyc"
+  - "**/settings/local.py"
+  - "**/settings/dev.py"
+
+# Analysis Options
+analysis_options:
+  complexity_analysis: true
+  side_effects: true
+  dependencies: true
+  django_patterns: true
+  orm_analysis: true
+  template_analysis: true
+  api_analysis: true
+
+# Metrics Configuration
+metrics:
+  enabled: true
+  weekly_reports: true
+  event_tracking: true
+  django_specific_metrics: true
+
+# CI/CD Integration
+ci_integration:
+  enabled: true
+  platform: "github"
+  fail_on_issues: true
+  generate_reports: true
+  django_checks: true
+  test_coverage: true
+
+# IDE Integration
+ide_integration:
+  enabled: true
+  type: "vscode"
+  gutter_annotations: true
+  quick_peek: true
+  django_autocomplete: true
+  template_support: true
+
+# Django-specific settings
+django_settings:
+  apps_analysis: true
+  model_relationships: true
+  view_hierarchy: true
+  url_patterns: true
+  template_inheritance: true
+  static_files: true
+  media_files: true
+  migrations: false # Usually not needed for understanding
+
+# Documentation
+glossary_path: "docs/glossary.md"
+tour_output: "tours/understanding.md"
+fixtures_path: "fixtures/"
+
+# Advanced Features
+advanced:
+  # Track Django-specific patterns
+  track_orm_queries: true
+  track_template_usage: true
+  track_url_patterns: true
+  track_admin_usage: true
+
+  # Performance analysis
+  query_analysis: true
+  template_performance: true
+  static_file_analysis: true
+
+  # Security analysis
+  security_checks: true
+  csrf_analysis: true
+  permission_analysis: true

@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 import json
 import os
 import pathlib
@@ -186,9 +186,7 @@ def tour(lens_json: str, o: str = typer.Option("tours/tour.md", "--output", "-o"
 
 
 @app.command()
-def tour_run(
-    lens_json: str, fixtures_dir: str = typer.Option("fixtures", "--fixtures", "-f")
-):
+def tour_run(lens_json: str, fixtures_dir: str = typer.Option("fixtures", "--fixtures", "-f")):
     """Attempt to run a minimal fixture and verify runtime hits align with the lens."""
     # Try running a default fixture file if present, else generate a minimal one.
     fixture = os.path.join(fixtures_dir, "fixture_hot_path.py")
@@ -280,9 +278,7 @@ def contracts_check(path: str):
 
 
 @contracts_app.command("stub-tests")
-def contracts_stub(
-    path: str, o: str = typer.Option("tests/test_contracts.py", "--output", "-o")
-):
+def contracts_stub(path: str, o: str = typer.Option("tests/test_contracts.py", "--output", "-o")):
     os.makedirs(pathlib.Path(o).parent, exist_ok=True)
     txt = stub_tests(path)
     with open(o, "w", encoding="utf-8") as f:
@@ -348,10 +344,7 @@ def contracts_verify_lean(
     if json_out:
         print(json.dumps(data, indent=2))
     else:
-        print(
-            f"modules: {data.get('modules_total')}\n"
-            f"functions: {data.get('functions_total')}"
-        )
+        print(f"modules: {data.get('modules_total')}\n" f"functions: {data.get('functions_total')}")
         missing = data.get("missing_invariants", [])
         if missing:
             print("missing invariants:")
@@ -515,9 +508,7 @@ def doctor():
                 "Install Node 18+ or use Devcontainer/Codespaces",
             )
     except Exception:
-        warn(
-            "Node not found in PATH", "Install Node 18+ or use Devcontainer/Codespaces"
-        )
+        warn("Node not found in PATH", "Install Node 18+ or use Devcontainer/Codespaces")
 
     try:
         import grpc_tools  # type: ignore
@@ -588,27 +579,19 @@ def demo():
     except Exception:
         pass
 
-    http_proc = subprocess.Popen(
-        [sys.executable, "examples/servers/http_server.py"]
-    )  # nosec
+    http_proc = subprocess.Popen([sys.executable, "examples/servers/http_server.py"])  # nosec
     try:
         os.makedirs("traces", exist_ok=True)
         data = run_callable_with_trace("examples/app/hot_path.py", "run_hot_path")
-        open("traces/tour.json", "w", encoding="utf-8").write(
-            json.dumps(data, indent=2)
-        )
+        open("traces/tour.json", "w", encoding="utf-8").write(json.dumps(data, indent=2))
 
         os.makedirs("maps", exist_ok=True)
         repo_map = build_python_map(pathlib.Path("examples/python_toy"))
-        open("maps/repo.json", "w", encoding="utf-8").write(
-            json.dumps(repo_map, indent=2)
-        )
+        open("maps/repo.json", "w", encoding="utf-8").write(json.dumps(repo_map, indent=2))
         lens = lens_from_seeds(["compute"], repo_map)
         merged = merge_trace_into_lens(lens, data)
         rank_by_error_proximity(merged)
-        open("maps/lens_merged.json", "w", encoding="utf-8").write(
-            json.dumps(merged, indent=2)
-        )
+        open("maps/lens_merged.json", "w", encoding="utf-8").write(json.dumps(merged, indent=2))
 
         os.makedirs("tours", exist_ok=True)
         open("tours/demo.md", "w", encoding="utf-8").write(write_tour_md(merged))
@@ -631,8 +614,18 @@ def demo():
 
 @app.command()
 def init(
-    stack: str = typer.Option("py", "--stack"), ci: str = typer.Option("github", "--ci")
+    stack: str = typer.Option("py", "--stack"),
+    ci: str = typer.Option("github", "--ci"),
+    wizard: bool = typer.Option(False, "--wizard", help="Interactive configuration wizard"),
 ):
+    if wizard:
+        _run_config_wizard()
+    else:
+        _create_basic_config(stack, ci)
+
+
+def _create_basic_config(stack: str, ci: str):
+    """Create a basic configuration file."""
     os.makedirs(".understand-first.yml".replace(".yml", ""), exist_ok=True)  # no-op
     open(".understand-first.yml", "w", encoding="utf-8").write(
         """hops: 2
@@ -648,6 +641,642 @@ metrics:
         "\n\n## 10-minute tour\nRun `u scan` then `u demo`.\n"
     )
     print("[green]Initialized understand-first config and basics[/green]")
+
+
+def _run_config_wizard():
+    """Run interactive configuration wizard with enhanced features."""
+    print("[bold blue]🧠 Understand-First Configuration Wizard[/bold blue]")
+    print("This wizard will help you set up your .understand-first.yml configuration.")
+    print("The wizard will guide you through project-specific optimizations and best practices.")
+    print()
+
+    # Enhanced project type selection
+    project_types = {
+        "1": ("python", "Python project", "General Python applications and libraries"),
+        "2": (
+            "django",
+            "Django web application",
+            "Django web apps with models, views, and templates",
+        ),
+        "3": ("fastapi", "FastAPI web application", "Modern async API applications with FastAPI"),
+        "4": ("flask", "Flask web application", "Flask web apps with blueprints and extensions"),
+        "5": (
+            "microservices",
+            "Microservices architecture",
+            "Distributed systems with multiple services",
+        ),
+        "6": ("react", "React frontend", "React applications with components and hooks"),
+        "7": (
+            "nodejs",
+            "Node.js application",
+            "Node.js applications with Express or other frameworks",
+        ),
+        "8": ("go", "Go application", "Go applications and microservices"),
+        "9": ("java", "Java application", "Java applications with Spring or other frameworks"),
+        "10": ("custom", "Custom configuration", "Manually configure all settings"),
+    }
+
+    print("What type of project are you configuring?")
+    for key, (value, description, details) in project_types.items():
+        print(f"  {key}. {description}")
+        print(f"     {details}")
+        print()
+
+    while True:
+        choice = typer.prompt("Enter your choice (1-10)", type=str)
+        if choice in project_types:
+            project_type, project_name, project_details = project_types[choice]
+            break
+        print("[red]Invalid choice. Please enter 1-10.[/red]")
+
+    print(f"\n[green]Selected:[/green] {project_name}")
+    print(f"[dim]{project_details}[/dim]")
+
+    # Load template if available
+    template_config = _load_project_template(project_type)
+
+    # Configuration options with enhanced defaults
+    config = {
+        "hops": 2,
+        "seeds": [],
+        "seeds_for": {},
+        "contracts_paths": [],
+        "glossary_path": "docs/glossary.md",
+        "metrics": {"enabled": False},
+        "exclude_patterns": [],
+        "include_patterns": [],
+        "analysis_options": {},
+        "ci_integration": {"enabled": False},
+        "ide_integration": {"enabled": True},
+    }
+
+    # Merge template configuration
+    if template_config:
+        config.update(template_config)
+        print(f"\n[green]Loaded template configuration for {project_name}[/green]")
+
+    # Hops configuration with better validation
+    print("\n[bold]Analysis Depth Configuration[/bold]")
+    print("Hops determine how deep the analysis should traverse from seed functions.")
+    print("Higher values provide more comprehensive analysis but may be slower.")
+
+    hops = typer.prompt(
+        "How many hops should the lens traverse? (1-10, default: 2)",
+        type=int,
+        default=config.get("hops", 2),
+    )
+    config["hops"] = max(1, min(10, hops))  # Clamp between 1 and 10
+
+    # Enhanced seeds configuration
+    print("\n[bold]Seeds Configuration[/bold]")
+    print("Seeds are starting points for understanding analysis.")
+    print("You can add files, functions, modules, or patterns as seeds.")
+    print("Examples: 'main.py', 'app.py:main', '*/models.py', 'service.*'")
+
+    add_seeds = typer.confirm(
+        "Would you like to add custom seeds?", default=len(config.get("seeds", [])) == 0
+    )
+    if add_seeds:
+        seeds = config.get("seeds", [])
+        print("\n[dim]Enter seeds one by one. Press Enter with empty input to finish.[/dim]")
+        while True:
+            seed = typer.prompt(
+                "Enter a seed (file path, function, or pattern) or press Enter to finish",
+                default="",
+            )
+            if not seed:
+                break
+            if seed not in seeds:
+                seeds.append(seed)
+                print(f"[green]Added seed:[/green] {seed}")
+            else:
+                print(f"[yellow]Seed already exists:[/yellow] {seed}")
+        config["seeds"] = seeds
+
+    # Enhanced preset seeds configuration
+    print("\n[bold]Preset Seeds for Common Scenarios[/bold]")
+    print("Define preset seed collections for common development scenarios.")
+    print("These can be used with commands like 'u lens preset bug' or 'u lens preset feature'.")
+
+    add_presets = typer.confirm(
+        "Would you like to configure preset seed collections?", default=True
+    )
+    if add_presets:
+        presets = config.get("seeds_for", {})
+
+        # Suggest common presets based on project type
+        suggested_presets = _get_suggested_presets(project_type)
+        if suggested_presets:
+            print(f"\n[bold]Suggested presets for {project_name}:[/bold]")
+            for preset_name, preset_seeds in suggested_presets.items():
+                print(f"  • {preset_name}: {', '.join(preset_seeds)}")
+
+            use_suggested = typer.confirm("Use these suggested presets?", default=True)
+            if use_suggested:
+                presets.update(suggested_presets)
+
+        # Allow custom presets
+        add_custom_presets = typer.confirm("Add custom presets?", default=False)
+        if add_custom_presets:
+            while True:
+                preset_name = typer.prompt(
+                    "Enter preset name (e.g., 'bug', 'feature', 'api') or press Enter to finish",
+                    default="",
+                )
+                if not preset_name:
+                    break
+
+                preset_seeds = []
+                print(f"\n[dim]Enter seeds for '{preset_name}' preset:[/dim]")
+                while True:
+                    seed = typer.prompt(
+                        f"Enter seed for '{preset_name}' preset or press Enter to finish",
+                        default="",
+                    )
+                    if not seed:
+                        break
+                    preset_seeds.append(seed)
+
+                if preset_seeds:
+                    presets[preset_name] = preset_seeds
+                    print(
+                        f"[green]Added preset '{preset_name}' with {len(preset_seeds)} seeds[/green]"
+                    )
+
+        config["seeds_for"] = presets
+
+    # Enhanced contract configuration
+    print("\n[bold]Contract Configuration[/bold]")
+    print("Contracts define API specifications and formal verification requirements.")
+    print("These help ensure API compliance and can generate property tests.")
+
+    add_contracts = typer.confirm("Do you have contract files to include?", default=False)
+    if add_contracts:
+        contract_paths = config.get("contracts_paths", [])
+        print("\n[dim]Enter contract file paths one by one:[/dim]")
+        while True:
+            path = typer.prompt("Enter contract file path or press Enter to finish", default="")
+            if not path:
+                break
+            if os.path.exists(path):
+                contract_paths.append(path)
+                print(f"[green]Added contract:[/green] {path}")
+            else:
+                print(f"[yellow]File not found:[/yellow] {path}")
+                add_anyway = typer.confirm("Add anyway?", default=False)
+                if add_anyway:
+                    contract_paths.append(path)
+        config["contracts_paths"] = contract_paths
+
+    # Enhanced metrics configuration
+    print("\n[bold]Metrics and Analytics Configuration[/bold]")
+    print("Understand-First can track Time To Understanding (TTU) metrics and generate reports.")
+
+    enable_metrics = typer.confirm("Enable TTU metrics tracking?", default=False)
+    if enable_metrics:
+        config["metrics"]["enabled"] = True
+
+        # Additional metrics options
+        track_weekly = typer.confirm("Generate weekly TTU reports?", default=True)
+        if track_weekly:
+            config["metrics"]["weekly_reports"] = True
+
+        track_events = typer.confirm(
+            "Track specific events (onboarding, debugging, etc.)?", default=True
+        )
+        if track_events:
+            config["metrics"]["event_tracking"] = True
+    else:
+        config["metrics"]["enabled"] = False
+
+    # CI/CD Integration
+    print("\n[bold]CI/CD Integration[/bold]")
+    print("Configure Understand-First to run in your CI/CD pipeline.")
+
+    enable_ci = typer.confirm("Enable CI integration?", default=False)
+    if enable_ci:
+        config["ci_integration"]["enabled"] = True
+
+        ci_platform = typer.prompt(
+            "CI platform (github, gitlab, jenkins, other)", default="github"
+        ).lower()
+        config["ci_integration"]["platform"] = ci_platform
+
+        fail_on_issues = typer.confirm("Fail CI on understanding issues?", default=True)
+        config["ci_integration"]["fail_on_issues"] = fail_on_issues
+
+        generate_reports = typer.confirm("Generate CI reports?", default=True)
+        config["ci_integration"]["generate_reports"] = generate_reports
+
+    # IDE Integration
+    print("\n[bold]IDE Integration[/bold]")
+    print("Configure IDE-specific features and integrations.")
+
+    enable_ide = typer.confirm("Enable IDE integration?", default=True)
+    if enable_ide:
+        config["ide_integration"]["enabled"] = True
+
+        ide_type = typer.prompt("IDE type (vscode, pycharm, vim, other)", default="vscode").lower()
+        config["ide_integration"]["type"] = ide_type
+
+        show_gutter_annotations = typer.confirm("Show gutter annotations?", default=True)
+        config["ide_integration"]["gutter_annotations"] = show_gutter_annotations
+
+        enable_quick_peek = typer.confirm("Enable quick peek tours?", default=True)
+        config["ide_integration"]["quick_peek"] = enable_quick_peek
+
+    # Analysis options
+    print("\n[bold]Analysis Options[/bold]")
+    print("Configure advanced analysis features and optimizations.")
+
+    analysis_options = {}
+
+    enable_complexity_analysis = typer.confirm("Enable complexity analysis?", default=True)
+    if enable_complexity_analysis:
+        analysis_options["complexity_analysis"] = True
+
+    enable_side_effect_detection = typer.confirm("Enable side effect detection?", default=True)
+    if enable_side_effect_detection:
+        analysis_options["side_effects"] = True
+
+    enable_dependency_analysis = typer.confirm("Enable dependency analysis?", default=True)
+    if enable_dependency_analysis:
+        analysis_options["dependencies"] = True
+
+    config["analysis_options"] = analysis_options
+
+    # File patterns
+    print("\n[bold]File Inclusion/Exclusion Patterns[/bold]")
+    print("Configure which files to include or exclude from analysis.")
+
+    configure_patterns = typer.confirm("Configure file patterns?", default=False)
+    if configure_patterns:
+        # Include patterns
+        include_patterns = []
+        print("\n[dim]Enter include patterns (e.g., '*.py', 'src/**/*.js'):[/dim]")
+        while True:
+            pattern = typer.prompt("Include pattern or press Enter to finish", default="")
+            if not pattern:
+                break
+            include_patterns.append(pattern)
+        config["include_patterns"] = include_patterns
+
+        # Exclude patterns
+        exclude_patterns = ["**/__pycache__/**", "**/node_modules/**", "**/.git/**"]
+        print(f"\n[dim]Default exclude patterns: {', '.join(exclude_patterns)}[/dim]")
+        add_excludes = typer.confirm("Add additional exclude patterns?", default=False)
+        if add_excludes:
+            while True:
+                pattern = typer.prompt("Exclude pattern or press Enter to finish", default="")
+                if not pattern:
+                    break
+                exclude_patterns.append(pattern)
+        config["exclude_patterns"] = exclude_patterns
+
+    # Write configuration with validation
+    try:
+        import yaml
+
+        # Validate configuration
+        errors = validate_config_dict(config)
+        if errors:
+            print("\n[red]Configuration validation errors:[/red]")
+            for error in errors:
+                print(f"  • {error}")
+
+            fix_errors = typer.confirm("Fix errors automatically?", default=True)
+            if fix_errors:
+                config = _fix_config_errors(config, errors)
+            else:
+                print("[yellow]Saving configuration with errors. Please fix manually.[/yellow]")
+
+        config_yaml = yaml.dump(config, default_flow_style=False, sort_keys=False, indent=2)
+
+        with open(".understand-first.yml", "w", encoding="utf-8") as f:
+            f.write(config_yaml)
+
+        # Create necessary directories
+        directories = ["tours", "maps", "traces", "contracts", "docs", "fixtures"]
+        for directory in directories:
+            os.makedirs(directory, exist_ok=True)
+
+        # Create example files
+        _create_example_files(project_type)
+
+        # Update README if it exists
+        _update_readme_with_integration(project_type)
+
+        print("\n[green]✅ Configuration saved to .understand-first.yml[/green]")
+        print("\n[bold]Next steps:[/bold]")
+        print("1. Run `u scan . -o maps/repo.json` to generate a repository map")
+        print("2. Run `u demo` for a guided demonstration")
+        print("3. Run `u doctor` to verify your setup")
+        print("4. Run `u init --template` to use project templates")
+
+        if config.get("ci_integration", {}).get("enabled"):
+            print("5. Configure your CI pipeline to run `u ci`")
+
+        print("\n[dim]Configuration wizard completed successfully![/dim]")
+
+    except Exception as e:
+        print(f"\n[red]Error saving configuration:[/red] {e}")
+        raise typer.Exit(1)
+
+
+def _load_project_template(project_type: str) -> Optional[Dict[str, Any]]:
+    """Load project template configuration if available."""
+    template_path = f"templates/{project_type}/.understand-first.yml"
+
+    if os.path.exists(template_path):
+        try:
+            import yaml
+
+            with open(template_path, "r", encoding="utf-8") as f:
+                return yaml.safe_load(f)
+        except Exception as e:
+            logger.warning(f"Failed to load template {template_path}: {e}")
+
+    return None
+
+
+def _get_suggested_presets(project_type: str) -> Dict[str, List[str]]:
+    """Get suggested presets based on project type."""
+    presets = {
+        "python": {
+            "main": ["main.py", "app.py", "run.py"],
+            "tests": ["test_*.py", "tests/*.py"],
+            "utils": ["utils/*.py", "helpers/*.py"],
+        },
+        "django": {
+            "models": ["*/models.py"],
+            "views": ["*/views.py"],
+            "urls": ["*/urls.py"],
+            "admin": ["*/admin.py"],
+            "forms": ["*/forms.py"],
+            "tests": ["*/test*.py", "*/tests.py"],
+        },
+        "fastapi": {
+            "routes": ["*/routes/*.py", "*/api/*.py", "main.py"],
+            "models": ["*/models.py", "*/schemas.py"],
+            "services": ["*/services/*.py", "*/core/*.py"],
+            "tests": ["test_*.py", "*/test_*.py"],
+        },
+        "flask": {
+            "routes": ["app.py", "*/routes/*.py", "*/blueprints/*.py"],
+            "models": ["*/models.py"],
+            "forms": ["*/forms.py"],
+            "templates": ["*/templates/**/*.html"],
+            "tests": ["test_*.py", "*/test_*.py"],
+        },
+        "microservices": {
+            "services": ["*/service*.py", "*/api*.py"],
+            "clients": ["*/client*.py"],
+            "models": ["*/models.py", "*/schemas.py"],
+            "tests": ["*/test*.py", "*/tests.py"],
+        },
+        "react": {
+            "components": ["src/components/**/*.js", "src/components/**/*.jsx"],
+            "pages": ["src/pages/**/*.js", "src/pages/**/*.jsx"],
+            "hooks": ["src/hooks/**/*.js"],
+            "utils": ["src/utils/**/*.js", "src/helpers/**/*.js"],
+            "tests": ["src/**/*.test.js", "src/**/*.spec.js"],
+        },
+        "nodejs": {
+            "routes": ["routes/*.js", "*/routes/*.js"],
+            "controllers": ["controllers/*.js", "*/controllers/*.js"],
+            "models": ["models/*.js", "*/models/*.js"],
+            "middleware": ["middleware/*.js", "*/middleware/*.js"],
+            "tests": ["test/*.js", "*/test/*.js", "**/*.test.js"],
+        },
+        "go": {
+            "main": ["main.go", "cmd/**/*.go"],
+            "handlers": ["handlers/*.go", "*/handlers/*.go"],
+            "models": ["models/*.go", "*/models/*.go"],
+            "services": ["services/*.go", "*/services/*.go"],
+            "tests": ["*_test.go", "**/*_test.go"],
+        },
+        "java": {
+            "controllers": ["**/controller/*.java", "**/web/*.java"],
+            "services": ["**/service/*.java", "**/business/*.java"],
+            "models": ["**/model/*.java", "**/entity/*.java"],
+            "repositories": ["**/repository/*.java", "**/dao/*.java"],
+            "tests": ["**/test/**/*.java", "**/*Test.java"],
+        },
+    }
+
+    return presets.get(project_type, {})
+
+
+def _fix_config_errors(config: Dict[str, Any], errors: List[str]) -> Dict[str, Any]:
+    """Fix common configuration errors automatically."""
+    fixed_config = config.copy()
+
+    for error in errors:
+        if "hops" in error and "must be between" in error:
+            fixed_config["hops"] = max(1, min(10, fixed_config.get("hops", 2)))
+        elif "seeds_for" in error and "must be a dict" in error:
+            fixed_config["seeds_for"] = {}
+        elif "metrics" in error and "must be a dict" in error:
+            fixed_config["metrics"] = {"enabled": False}
+        elif "contracts_paths" in error and "must be a list" in error:
+            fixed_config["contracts_paths"] = []
+        elif "exclude_patterns" in error and "must be a list" in error:
+            fixed_config["exclude_patterns"] = ["**/__pycache__/**", "**/node_modules/**"]
+        elif "include_patterns" in error and "must be a list" in error:
+            fixed_config["include_patterns"] = []
+
+    return fixed_config
+
+
+def _create_example_files(project_type: str) -> None:
+    """Create example files based on project type."""
+    try:
+        # Create example tour
+        tour_content = f"""# Understanding Tour Example
+
+This is an example tour generated for a {project_type} project.
+
+## Getting Started
+
+1. Run `u scan . -o maps/repo.json` to generate a repository map
+2. Run `u lens from-seeds --map maps/repo.json --seed main -o maps/lens.json`
+3. Run `u tour maps/lens.json -o tours/understanding.md`
+
+## Project-Specific Tips
+
+For {project_type} projects, focus on:
+- Main entry points and application structure
+- Key business logic and data models
+- API endpoints and routing
+- Test coverage and quality
+
+## Next Steps
+
+- Add more seeds based on your specific use cases
+- Configure CI integration for automated analysis
+- Set up IDE integration for real-time insights
+"""
+
+        with open("tours/example.md", "w", encoding="utf-8") as f:
+            f.write(tour_content)
+
+        # Create example fixture
+        fixture_content = f"""# Example Fixture for {project_type} Project
+
+This fixture demonstrates how to test the understanding generated by Understand-First.
+
+## Usage
+
+Run this fixture to verify that the understanding tour can be executed:
+
+```bash
+u tour_run --fixtures fixtures maps/lens.json
+```
+
+## Customization
+
+Modify this fixture to match your project's specific requirements and test scenarios.
+"""
+
+        with open("fixtures/example_fixture.py", "w", encoding="utf-8") as f:
+            f.write(fixture_content)
+
+        # Create example contract
+        contract_content = f"""# Example Contract for {project_type} Project
+
+This is an example contract file that defines API specifications and formal verification requirements.
+
+## Contract Definition
+
+```yaml
+# Example API contract
+ROUTE::api:
+  GET /health:
+    request_schema: {{}}
+    response_schema:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+        timestamp:
+          type: string
+          format: date-time
+    preconditions: []
+    postconditions: ["response.status_code == 200"]
+    side_effects: []
+```
+
+## Usage
+
+1. Define your API contracts in this file
+2. Run `u contracts verify` to check compliance
+3. Generate property tests with `u contracts stub-tests`
+"""
+
+        with open("contracts/example_contracts.yaml", "w", encoding="utf-8") as f:
+            f.write(contract_content)
+
+        print("[green]Created example files:[/green]")
+        print("  • tours/example.md")
+        print("  • fixtures/example_fixture.py")
+        print("  • contracts/example_contracts.yaml")
+
+    except Exception as e:
+        logger.warning(f"Failed to create example files: {e}")
+
+
+def _update_readme_with_integration(project_type: str) -> None:
+    """Update README with Understand-First integration section."""
+    if not os.path.exists("README.md"):
+        return
+
+    try:
+        integration_section = f"""
+
+## Understand-First Integration
+
+This project uses [Understand-First](https://github.com/your-org/understand-first) for automated code understanding and documentation generation.
+
+### Quick Start
+
+1. **Generate Repository Map**
+   ```bash
+   u scan . -o maps/repo.json
+   ```
+
+2. **Create Understanding Lens**
+   ```bash
+   u lens from-seeds --map maps/repo.json --seed main -o maps/lens.json
+   ```
+
+3. **Generate Understanding Tour**
+   ```bash
+   u tour maps/lens.json -o tours/understanding.md
+   ```
+
+4. **Run Guided Demo**
+   ```bash
+   u demo
+   ```
+
+### Project-Specific Configuration
+
+This {project_type} project is configured with optimized settings for:
+- **Seeds**: Key entry points and important modules
+- **Analysis**: Complexity analysis, side effect detection, and dependency tracking
+- **Integration**: IDE support and CI/CD pipeline integration
+
+### Understanding Features
+
+- **Interactive Tours**: Step-by-step walkthroughs of complex code paths
+- **Runtime Tracing**: Actual execution paths, not just static analysis
+- **Contract Verification**: API compliance and formal verification
+- **Metrics Tracking**: Time To Understanding (TTU) measurement
+- **IDE Integration**: Real-time insights in your development environment
+
+### Configuration
+
+The project configuration is stored in `.understand-first.yml`. Key settings include:
+
+- **Hops**: Analysis depth (currently set to {2})
+- **Seeds**: Starting points for analysis
+- **Presets**: Common scenarios like bug fixes and feature development
+- **Patterns**: File inclusion/exclusion rules
+
+### CI/CD Integration
+
+The project is configured for CI/CD integration. Add this to your pipeline:
+
+```yaml
+- name: Understand-First Analysis
+  run: |
+    u scan . -o maps/repo.json
+    u lens preset feature --map maps/repo.json -o maps/lens.json
+    u tour maps/lens.json -o tours/ci-tour.md
+```
+
+### IDE Integration
+
+Install the Understand-First VS Code extension for:
+- Gutter annotations showing complexity and call counts
+- Quick peek tours and explanations
+- Real-time understanding insights
+
+### Learn More
+
+- [Documentation](https://github.com/your-org/understand-first#readme)
+- [Examples](https://github.com/your-org/understand-first/tree/main/examples)
+- [Web Demo](https://your-org.github.io/understand-first/demo)
+"""
+
+        with open("README.md", "a", encoding="utf-8") as f:
+            f.write(integration_section)
+
+        print("[green]Updated README.md with Understand-First integration section[/green]")
+
+    except Exception as e:
+        logger.warning(f"Failed to update README: {e}")
 
 
 @app.command()

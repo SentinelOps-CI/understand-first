@@ -1,0 +1,241 @@
+# Python Project Template for Understand-First
+# ============================================
+#
+# This template is optimized for general Python applications and libraries
+# with modern Python patterns and best practices. It provides comprehensive
+# analysis of Python-specific patterns and conventions.
+
+# Analysis Configuration
+hops: 2
+seeds: []
+
+# Project-specific seed presets for Python
+seeds_for:
+  # Core application files
+  main:
+    - "main.py"
+    - "app.py"
+    - "run.py"
+    - "cli.py"
+    - "__main__.py"
+
+  modules:
+    - "*.py"
+    - "*/__init__.py"
+    - "*/core/*.py"
+    - "*/lib/*.py"
+
+  utils:
+    - "utils/*.py"
+    - "*/utils/*.py"
+    - "*/helpers/*.py"
+    - "*/common/*.py"
+
+  services:
+    - "*/services/*.py"
+    - "*/business/*.py"
+    - "*/logic/*.py"
+    - "*/core/*.py"
+
+  models:
+    - "*/models/*.py"
+    - "*/entities/*.py"
+    - "*/schemas/*.py"
+    - "*/data/*.py"
+
+  api:
+    - "*/api/*.py"
+    - "*/endpoints/*.py"
+    - "*/routes/*.py"
+    - "*/handlers/*.py"
+
+  # Configuration and settings
+  config:
+    - "*/config/*.py"
+    - "*/settings/*.py"
+    - "*/env/*.py"
+    - "*/constants.py"
+
+  # Testing
+  tests:
+    - "test_*.py"
+    - "*/test_*.py"
+    - "*/tests/*.py"
+    - "tests/*.py"
+    - "*/conftest.py"
+
+  # Common scenarios
+  bug:
+    - "main.py"
+    - "app.py"
+    - "*/core/*.py"
+    - "*/services/*.py"
+
+  feature:
+    - "*/core/*.py"
+    - "*/services/*.py"
+    - "*/models/*.py"
+    - "*/api/*.py"
+
+  api_development:
+    - "*/api/*.py"
+    - "*/endpoints/*.py"
+    - "*/handlers/*.py"
+    - "*/models/*.py"
+
+  performance:
+    - "*/services/*.py"
+    - "*/core/*.py"
+    - "*/utils/*.py"
+    - "*/cache/*.py"
+
+# Contract Configuration
+contracts_paths:
+  - "contracts/api_contracts.yaml"
+  - "contracts/function_contracts.yaml"
+  - "contracts/class_contracts.yaml"
+
+# File Patterns
+include_patterns:
+  - "*.py"
+  - "*.pyi"
+  - "*.pyx"
+  - "*.pyx.in"
+  - "*/requirements.txt"
+  - "*/pyproject.toml"
+  - "*/setup.py"
+  - "*/setup.cfg"
+
+exclude_patterns:
+  - "**/__pycache__/**"
+  - "**/venv/**"
+  - "**/env/**"
+  - "**/.git/**"
+  - "**/node_modules/**"
+  - "**/*.pyc"
+  - "**/logs/**"
+  - "**/tmp/**"
+  - "**/cache/**"
+  - "**/build/**"
+  - "**/dist/**"
+  - "**/.pytest_cache/**"
+  - "**/.coverage"
+  - "**/htmlcov/**"
+  - "**/.tox/**"
+
+# Analysis Options
+analysis_options:
+  complexity_analysis: true
+  side_effects: true
+  dependencies: true
+  python_patterns: true
+  import_analysis: true
+  class_analysis: true
+  function_analysis: true
+  decorator_analysis: true
+
+# Metrics Configuration
+metrics:
+  enabled: true
+  weekly_reports: true
+  event_tracking: true
+  python_metrics: true
+  performance_metrics: true
+  memory_metrics: true
+  import_metrics: true
+
+# CI/CD Integration
+ci_integration:
+  enabled: true
+  platform: "github"
+  fail_on_issues: true
+  generate_reports: true
+  python_testing: true
+  api_testing: true
+  performance_testing: true
+  code_coverage: true
+
+# IDE Integration
+ide_integration:
+  enabled: true
+  type: "vscode"
+  gutter_annotations: true
+  quick_peek: true
+  python_autocomplete: true
+  type_hints: true
+  linting: true
+
+# Python-specific settings
+python_settings:
+  # Import analysis
+  import_dependencies: true
+  import_usage: true
+  import_organization: true
+  import_optimization: true
+
+  # Class analysis
+  class_hierarchy: true
+  class_dependencies: true
+  class_relationships: true
+  class_visibility: true
+
+  # Function analysis
+  function_complexity: true
+  function_dependencies: true
+  function_usage: true
+  function_parameters: true
+
+  # Decorator analysis
+  decorator_usage: true
+  decorator_effects: true
+  custom_decorators: true
+  builtin_decorators: true
+
+# Advanced Features
+advanced:
+  # Track Python-specific patterns
+  track_import_usage: true
+  track_class_usage: true
+  track_function_usage: true
+  track_decorator_usage: true
+
+  # Performance analysis
+  memory_usage: true
+  cpu_usage: true
+  import_performance: true
+  function_performance: true
+
+  # Security analysis
+  dependency_analysis: true
+  vulnerability_analysis: true
+  input_validation: true
+  authentication: true
+
+  # Code quality
+  pep8_compliance: true
+  type_hint_analysis: true
+  docstring_analysis: true
+  test_coverage: true
+
+# Documentation
+glossary_path: "docs/glossary.md"
+tour_output: "tours/understanding.md"
+fixtures_path: "fixtures/"
+api_docs_path: "docs/api/"
+
+# Package Management
+package_management:
+  enabled: true
+  pip_analysis: true
+  dependency_analysis: true
+  version_analysis: true
+  security_audit: true
+
+# Testing
+python_testing:
+  enabled: true
+  unit_tests: true
+  integration_tests: true
+  test_coverage: true
+  pytest_analysis: true
+  unittest_analysis: true

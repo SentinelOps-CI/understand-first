@@ -1,0 +1,283 @@
+# React Project Template for Understand-First
+# ===========================================
+#
+# This template is optimized for React applications with modern patterns,
+# hooks, state management, and component architecture. It provides comprehensive
+# analysis of React-specific patterns and best practices.
+
+# Analysis Configuration
+hops: 2
+seeds: []
+
+# Project-specific seed presets for React
+seeds_for:
+  # Core React components
+  components:
+    - "src/components/**/*.js"
+    - "src/components/**/*.jsx"
+    - "src/components/**/*.ts"
+    - "src/components/**/*.tsx"
+
+  pages:
+    - "src/pages/**/*.js"
+    - "src/pages/**/*.jsx"
+    - "src/pages/**/*.ts"
+    - "src/pages/**/*.tsx"
+
+  hooks:
+    - "src/hooks/**/*.js"
+    - "src/hooks/**/*.ts"
+    - "src/hooks/**/*.jsx"
+    - "src/hooks/**/*.tsx"
+
+  utils:
+    - "src/utils/**/*.js"
+    - "src/utils/**/*.ts"
+    - "src/helpers/**/*.js"
+    - "src/helpers/**/*.ts"
+
+  services:
+    - "src/services/**/*.js"
+    - "src/services/**/*.ts"
+    - "src/api/**/*.js"
+    - "src/api/**/*.ts"
+
+  store:
+    - "src/store/**/*.js"
+    - "src/store/**/*.ts"
+    - "src/redux/**/*.js"
+    - "src/redux/**/*.ts"
+    - "src/context/**/*.js"
+    - "src/context/**/*.ts"
+
+  styles:
+    - "src/styles/**/*.css"
+    - "src/styles/**/*.scss"
+    - "src/styles/**/*.sass"
+    - "src/styles/**/*.less"
+    - "src/**/*.module.css"
+
+  # Main application files
+  main:
+    - "src/App.js"
+    - "src/App.jsx"
+    - "src/App.ts"
+    - "src/App.tsx"
+    - "src/index.js"
+    - "src/index.ts"
+    - "src/main.js"
+    - "src/main.ts"
+
+  # Routing
+  routing:
+    - "src/routes/**/*.js"
+    - "src/routes/**/*.jsx"
+    - "src/routes/**/*.ts"
+    - "src/routes/**/*.tsx"
+    - "src/router/**/*.js"
+    - "src/router/**/*.ts"
+
+  # Configuration
+  config:
+    - "src/config/**/*.js"
+    - "src/config/**/*.ts"
+    - "src/constants/**/*.js"
+    - "src/constants/**/*.ts"
+    - "src/settings/**/*.js"
+    - "src/settings/**/*.ts"
+
+  # Testing
+  tests:
+    - "src/**/*.test.js"
+    - "src/**/*.test.jsx"
+    - "src/**/*.test.ts"
+    - "src/**/*.test.tsx"
+    - "src/**/*.spec.js"
+    - "src/**/*.spec.jsx"
+    - "src/**/*.spec.ts"
+    - "src/**/*.spec.tsx"
+    - "tests/**/*.js"
+    - "tests/**/*.ts"
+
+  # Common scenarios
+  bug:
+    - "src/App.js"
+    - "src/App.jsx"
+    - "src/components/**/*.js"
+    - "src/components/**/*.jsx"
+
+  feature:
+    - "src/components/**/*.js"
+    - "src/components/**/*.jsx"
+    - "src/pages/**/*.js"
+    - "src/pages/**/*.jsx"
+    - "src/hooks/**/*.js"
+    - "src/hooks/**/*.ts"
+
+  performance:
+    - "src/components/**/*.js"
+    - "src/components/**/*.jsx"
+    - "src/hooks/**/*.js"
+    - "src/hooks/**/*.ts"
+    - "src/services/**/*.js"
+    - "src/services/**/*.ts"
+
+  state_management:
+    - "src/store/**/*.js"
+    - "src/store/**/*.ts"
+    - "src/redux/**/*.js"
+    - "src/redux/**/*.ts"
+    - "src/context/**/*.js"
+    - "src/context/**/*.ts"
+
+  api_integration:
+    - "src/services/**/*.js"
+    - "src/services/**/*.ts"
+    - "src/api/**/*.js"
+    - "src/api/**/*.ts"
+    - "src/hooks/**/*.js"
+    - "src/hooks/**/*.ts"
+
+# Contract Configuration
+contracts_paths:
+  - "contracts/api_contracts.yaml"
+  - "contracts/component_contracts.yaml"
+  - "contracts/prop_contracts.yaml"
+
+# File Patterns
+include_patterns:
+  - "src/**/*.js"
+  - "src/**/*.jsx"
+  - "src/**/*.ts"
+  - "src/**/*.tsx"
+  - "src/**/*.css"
+  - "src/**/*.scss"
+  - "src/**/*.sass"
+  - "src/**/*.less"
+  - "public/**/*.html"
+  - "public/**/*.json"
+
+exclude_patterns:
+  - "**/node_modules/**"
+  - "**/build/**"
+  - "**/dist/**"
+  - "**/.git/**"
+  - "**/coverage/**"
+  - "**/.nyc_output/**"
+  - "**/logs/**"
+  - "**/tmp/**"
+  - "**/cache/**"
+  - "**/*.log"
+  - "**/package-lock.json"
+  - "**/yarn.lock"
+
+# Analysis Options
+analysis_options:
+  complexity_analysis: true
+  side_effects: true
+  dependencies: true
+  react_patterns: true
+  hook_analysis: true
+  component_analysis: true
+  prop_analysis: true
+  state_analysis: true
+
+# Metrics Configuration
+metrics:
+  enabled: true
+  weekly_reports: true
+  event_tracking: true
+  component_metrics: true
+  performance_metrics: true
+  bundle_analysis: true
+
+# CI/CD Integration
+ci_integration:
+  enabled: true
+  platform: "github"
+  fail_on_issues: true
+  generate_reports: true
+  component_testing: true
+  bundle_analysis: true
+  performance_testing: true
+
+# IDE Integration
+ide_integration:
+  enabled: true
+  type: "vscode"
+  gutter_annotations: true
+  quick_peek: true
+  react_autocomplete: true
+  jsx_support: true
+  typescript_support: true
+
+# React-specific settings
+react_settings:
+  # Component analysis
+  component_hierarchy: true
+  prop_flow_analysis: true
+  state_flow_analysis: true
+  lifecycle_analysis: true
+
+  # Hook analysis
+  custom_hooks: true
+  hook_dependencies: true
+  hook_side_effects: true
+  hook_performance: true
+
+  # JSX analysis
+  jsx_complexity: true
+  jsx_patterns: true
+  conditional_rendering: true
+
+  # Performance analysis
+  re_render_analysis: true
+  memo_analysis: true
+  callback_analysis: true
+  effect_analysis: true
+
+# Advanced Features
+advanced:
+  # Track React-specific patterns
+  track_component_usage: true
+  track_hook_usage: true
+  track_prop_flow: true
+  track_state_changes: true
+
+  # Component analysis
+  component_complexity: true
+  prop_complexity: true
+  state_complexity: true
+  render_complexity: true
+
+  # Performance analysis
+  bundle_size_analysis: true
+  lazy_loading_analysis: true
+  code_splitting_analysis: true
+  optimization_analysis: true
+
+  # Accessibility analysis
+  a11y_analysis: true
+  semantic_analysis: true
+  aria_analysis: true
+
+# Documentation
+glossary_path: "docs/glossary.md"
+tour_output: "tours/understanding.md"
+fixtures_path: "fixtures/"
+storybook_path: "storybook/"
+
+# Storybook Integration
+storybook:
+  enabled: true
+  generate_stories: true
+  component_documentation: true
+  interactive_examples: true
+
+# Bundle Analysis
+bundle_analysis:
+  enabled: true
+  track_size: true
+  track_chunks: true
+  track_imports: true
+  optimization_suggestions: true

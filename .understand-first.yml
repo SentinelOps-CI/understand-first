@@ -1,19 +1,32 @@
-# Understand-First seed config
-# Default seeds to use when none are provided (file:function or token)
-seeds:
-  - examples/app/hot_path.py:run_hot_path
-# Default neighbor expansion hops for lens building
 hops: 2
-# Optional: where contracts and glossary live
-contracts_paths:
-  - contracts/contracts_from_openapi.yaml
-  - contracts/contracts.yaml
+seeds: []
+seeds_for: {}
+contracts_paths: []
 glossary_path: docs/glossary.md
-
-seeds_for:
-  bug:
-    - examples/app/hot_path.py:run_hot_path
-  perf:
-    - examples/clients/pet_client.py:list_pets
-  infra:
-    - examples/servers/http_server.py:list_pets
+metrics:
+  enabled: true
+  weekly_reports: true
+  event_tracking: true
+exclude_patterns:
+- '**/__pycache__/**'
+- '**/node_modules/**'
+- '**/.git/**'
+include_patterns:
+- y
+- y
+- y
+- y
+analysis_options:
+  complexity_analysis: true
+  side_effects: true
+  dependencies: true
+ci_integration:
+  enabled: true
+  platform: y
+  fail_on_issues: true
+  generate_reports: true
+ide_integration:
+  enabled: true
+  type: y
+  gutter_annotations: true
+  quick_peek: true

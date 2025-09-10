@@ -1,0 +1,236 @@
+# Java Project Template for Understand-First
+# ==========================================
+#
+# This template is optimized for Java applications with Spring, Maven/Gradle,
+# and enterprise patterns. It provides comprehensive analysis of Java-specific
+# patterns and best practices.
+
+# Analysis Configuration
+hops: 3
+seeds: []
+
+# Project-specific seed presets for Java
+seeds_for:
+  # Core application files
+  main:
+    - "**/Application.java"
+    - "**/Main.java"
+    - "**/App.java"
+    - "**/Server.java"
+
+  controllers:
+    - "**/controller/*.java"
+    - "**/web/*.java"
+    - "**/api/*.java"
+    - "**/rest/*.java"
+
+  services:
+    - "**/service/*.java"
+    - "**/business/*.java"
+    - "**/logic/*.java"
+    - "**/impl/*.java"
+
+  models:
+    - "**/model/*.java"
+    - "**/entity/*.java"
+    - "**/domain/*.java"
+    - "**/dto/*.java"
+
+  repositories:
+    - "**/repository/*.java"
+    - "**/dao/*.java"
+    - "**/data/*.java"
+    - "**/persistence/*.java"
+
+  configuration:
+    - "**/config/*.java"
+    - "**/configuration/*.java"
+    - "**/settings/*.java"
+    - "**/properties/*.java"
+
+  # Spring-specific
+  spring:
+    - "**/@Controller"
+    - "**/@Service"
+    - "**/@Repository"
+    - "**/@Component"
+    - "**/@Configuration"
+
+  # Testing
+  tests:
+    - "**/test/**/*.java"
+    - "**/*Test.java"
+    - "**/*Tests.java"
+    - "**/test/*.java"
+
+  # Common scenarios
+  bug:
+    - "**/Application.java"
+    - "**/controller/*.java"
+    - "**/service/*.java"
+    - "**/model/*.java"
+
+  feature:
+    - "**/controller/*.java"
+    - "**/service/*.java"
+    - "**/model/*.java"
+    - "**/repository/*.java"
+
+  api_development:
+    - "**/api/*.java"
+    - "**/controller/*.java"
+    - "**/service/*.java"
+    - "**/model/*.java"
+
+  performance:
+    - "**/service/*.java"
+    - "**/repository/*.java"
+    - "**/cache/*.java"
+    - "**/util/*.java"
+
+# Contract Configuration
+contracts_paths:
+  - "contracts/api_contracts.yaml"
+  - "contracts/service_contracts.yaml"
+  - "contracts/interface_contracts.yaml"
+
+# File Patterns
+include_patterns:
+  - "**/*.java"
+  - "**/*.xml"
+  - "**/*.yml"
+  - "**/*.yaml"
+  - "**/*.properties"
+  - "**/pom.xml"
+  - "**/build.gradle"
+
+exclude_patterns:
+  - "**/target/**"
+  - "**/build/**"
+  - "**/.git/**"
+  - "**/logs/**"
+  - "**/tmp/**"
+  - "**/cache/**"
+  - "**/*.class"
+  - "**/*.jar"
+  - "**/*.war"
+  - "**/*.ear"
+  - "**/node_modules/**"
+
+# Analysis Options
+analysis_options:
+  complexity_analysis: true
+  side_effects: true
+  dependencies: true
+  java_patterns: true
+  spring_patterns: true
+  annotation_analysis: true
+  inheritance_analysis: true
+  interface_analysis: true
+
+# Metrics Configuration
+metrics:
+  enabled: true
+  weekly_reports: true
+  event_tracking: true
+  java_metrics: true
+  performance_metrics: true
+  memory_metrics: true
+  jvm_metrics: true
+
+# CI/CD Integration
+ci_integration:
+  enabled: true
+  platform: "github"
+  fail_on_issues: true
+  generate_reports: true
+  java_testing: true
+  api_testing: true
+  performance_testing: true
+  code_coverage: true
+
+# IDE Integration
+ide_integration:
+  enabled: true
+  type: "vscode"
+  gutter_annotations: true
+  quick_peek: true
+  java_autocomplete: true
+  maven_support: true
+  gradle_support: true
+
+# Java-specific settings
+java_settings:
+  # Class analysis
+  class_hierarchy: true
+  class_dependencies: true
+  class_visibility: true
+  class_relationships: true
+
+  # Interface analysis
+  interface_implementation: true
+  interface_satisfaction: true
+  interface_inheritance: true
+  interface_usage: true
+
+  # Annotation analysis
+  annotation_usage: true
+  annotation_processing: true
+  spring_annotations: true
+  custom_annotations: true
+
+  # Package analysis
+  package_structure: true
+  package_dependencies: true
+  package_visibility: true
+  package_organization: true
+
+# Advanced Features
+advanced:
+  # Track Java-specific patterns
+  track_class_usage: true
+  track_interface_usage: true
+  track_annotation_usage: true
+  track_inheritance_usage: true
+
+  # Performance analysis
+  memory_usage: true
+  cpu_usage: true
+  garbage_collection: true
+  jvm_analysis: true
+
+  # Security analysis
+  dependency_analysis: true
+  vulnerability_analysis: true
+  input_validation: true
+  authentication: true
+
+  # Spring analysis
+  spring_context: true
+  spring_beans: true
+  spring_aop: true
+  spring_security: true
+
+# Documentation
+glossary_path: "docs/glossary.md"
+tour_output: "tours/understanding.md"
+fixtures_path: "fixtures/"
+api_docs_path: "docs/api/"
+
+# Build Tools
+build_tools:
+  enabled: true
+  maven_analysis: true
+  gradle_analysis: true
+  dependency_analysis: true
+  version_analysis: true
+  security_audit: true
+
+# Testing
+java_testing:
+  enabled: true
+  unit_tests: true
+  integration_tests: true
+  test_coverage: true
+  junit_analysis: true
+  mockito_analysis: true

@@ -1,0 +1,304 @@
+# Microservices Project Template for Understand-First
+# ===================================================
+# 
+# This template is optimized for microservices architectures with multiple
+# services, inter-service communication, and distributed patterns. It provides
+# comprehensive analysis of microservices-specific patterns and best practices.
+
+# Analysis Configuration
+hops: 4
+seeds: []
+
+# Project-specific seed presets for Microservices
+seeds_for:
+  # Core service components
+  services:
+    - "*/service*.py"
+    - "*/api*.py"
+    - "*/main.py"
+    - "*/app.py"
+  
+  clients:
+    - "*/client*.py"
+    - "*/clients/*.py"
+    - "*/http_client*.py"
+    - "*/grpc_client*.py"
+  
+  models:
+    - "*/models.py"
+    - "*/models/*.py"
+    - "*/schemas.py"
+    - "*/schemas/*.py"
+    - "*/entities.py"
+    - "*/entities/*.py"
+  
+  # API and communication
+  api:
+    - "*/api/*.py"
+    - "*/endpoints/*.py"
+    - "*/routes/*.py"
+    - "*/handlers/*.py"
+  
+  grpc:
+    - "*/grpc/*.py"
+    - "*/proto/*.py"
+    - "*/pb2/*.py"
+    - "*/pb2_grpc.py"
+  
+  messaging:
+    - "*/messaging/*.py"
+    - "*/events/*.py"
+    - "*/publishers/*.py"
+    - "*/subscribers/*.py"
+    - "*/consumers/*.py"
+  
+  # Data and storage
+  database:
+    - "*/database.py"
+    - "*/db.py"
+    - "*/connection.py"
+    - "*/migrations/*.py"
+    - "*/repositories/*.py"
+  
+  cache:
+    - "*/cache.py"
+    - "*/redis*.py"
+    - "*/memcache*.py"
+  
+  # Configuration and infrastructure
+  config:
+    - "*/config.py"
+    - "*/settings.py"
+    - "*/env.py"
+    - "*/constants.py"
+    - "*/secrets.py"
+  
+  infrastructure:
+    - "*/infrastructure/*.py"
+    - "*/deployment/*.py"
+    - "*/docker/*.py"
+    - "*/k8s/*.py"
+  
+  # Monitoring and observability
+  monitoring:
+    - "*/monitoring/*.py"
+    - "*/metrics/*.py"
+    - "*/logging.py"
+    - "*/tracing.py"
+    - "*/health.py"
+  
+  # Security and authentication
+  security:
+    - "*/auth/*.py"
+    - "*/security/*.py"
+    - "*/jwt.py"
+    - "*/oauth.py"
+    - "*/permissions.py"
+  
+  # Testing
+  tests:
+    - "*/test*.py"
+    - "*/tests/*.py"
+    - "*/conftest.py"
+    - "*/fixtures/*.py"
+  
+  # Common scenarios
+  bug:
+    - "*/service*.py"
+    - "*/api*.py"
+    - "*/client*.py"
+    - "*/models.py"
+  
+  feature:
+    - "*/service*.py"
+    - "*/api*.py"
+    - "*/models.py"
+    - "*/schemas.py"
+    - "*/client*.py"
+  
+  integration:
+    - "*/client*.py"
+    - "*/api/*.py"
+    - "*/messaging/*.py"
+    - "*/grpc/*.py"
+  
+  performance:
+    - "*/service*.py"
+    - "*/database.py"
+    - "*/cache.py"
+    - "*/monitoring/*.py"
+  
+  security:
+    - "*/auth/*.py"
+    - "*/security/*.py"
+    - "*/permissions.py"
+    - "*/client*.py"
+  
+  deployment:
+    - "*/infrastructure/*.py"
+    - "*/deployment/*.py"
+    - "*/docker/*.py"
+    - "*/k8s/*.py"
+
+# Contract Configuration
+contracts_paths:
+  - "contracts/service_contracts.yaml"
+  - "contracts/api_contracts.yaml"
+  - "contracts/grpc_contracts.yaml"
+  - "contracts/event_contracts.yaml"
+
+# File Patterns
+include_patterns:
+  - "*.py"
+  - "*/proto/*.proto"
+  - "*/docker/*.Dockerfile"
+  - "*/k8s/*.yaml"
+  - "*/k8s/*.yml"
+  - "*/config/*.yaml"
+  - "*/config/*.yml"
+  - "*/config/*.json"
+
+exclude_patterns:
+  - "**/__pycache__/**"
+  - "**/venv/**"
+  - "**/env/**"
+  - "**/.git/**"
+  - "**/node_modules/**"
+  - "**/*.pyc"
+  - "**/logs/**"
+  - "**/tmp/**"
+  - "**/cache/**"
+  - "**/build/**"
+  - "**/dist/**"
+  - "**/migrations/**"
+  - "**/pb2/**"
+  - "**/generated/**"
+
+# Analysis Options
+analysis_options:
+  complexity_analysis: true
+  side_effects: true
+  dependencies: true
+  microservices_patterns: true
+  service_communication: true
+  distributed_patterns: true
+  async_patterns: true
+  error_handling: true
+
+# Metrics Configuration
+metrics:
+  enabled: true
+  weekly_reports: true
+  event_tracking: true
+  service_metrics: true
+  communication_metrics: true
+  performance_metrics: true
+  distributed_tracing: true
+
+# CI/CD Integration
+ci_integration:
+  enabled: true
+  platform: "github"
+  fail_on_issues: true
+  generate_reports: true
+  service_testing: true
+  integration_testing: true
+  contract_testing: true
+  performance_testing: true
+
+# IDE Integration
+ide_integration:
+  enabled: true
+  type: "vscode"
+  gutter_annotations: true
+  quick_peek: true
+  service_navigation: true
+  contract_support: true
+  grpc_support: true
+
+# Microservices-specific settings
+microservices_settings:
+  # Service analysis
+  service_boundaries: true
+  service_dependencies: true
+  service_communication: true
+  service_contracts: true
+  
+  # Communication patterns
+  api_communication: true
+  grpc_communication: true
+  messaging_patterns: true
+  event_driven_patterns: true
+  
+  # Data patterns
+  data_consistency: true
+  data_replication: true
+  data_partitioning: true
+  data_synchronization: true
+  
+  # Infrastructure patterns
+  service_discovery: true
+  load_balancing: true
+  circuit_breakers: true
+  retry_patterns: true
+
+# Advanced Features
+advanced:
+  # Track microservices-specific patterns
+  track_service_calls: true
+  track_data_flow: true
+  track_event_flow: true
+  track_error_propagation: true
+  
+  # Service analysis
+  service_complexity: true
+  communication_complexity: true
+  data_flow_complexity: true
+  error_handling_complexity: true
+  
+  # Performance analysis
+  service_performance: true
+  network_performance: true
+  database_performance: true
+  cache_performance: true
+  
+  # Security analysis
+  service_security: true
+  communication_security: true
+  data_security: true
+  access_control: true
+  
+  # Reliability analysis
+  fault_tolerance: true
+  resilience_patterns: true
+  recovery_patterns: true
+  monitoring_patterns: true
+
+# Documentation
+glossary_path: "docs/glossary.md"
+tour_output: "tours/understanding.md"
+fixtures_path: "fixtures/"
+architecture_docs: "docs/architecture/"
+
+# Service Discovery
+service_discovery:
+  enabled: true
+  track_services: true
+  track_dependencies: true
+  track_health: true
+
+# Distributed Tracing
+distributed_tracing:
+  enabled: true
+  track_requests: true
+  track_errors: true
+  track_performance: true
+  track_dependencies: true
+
+# Contract Testing
+contract_testing:
+  enabled: true
+  api_contracts: true
+  grpc_contracts: true
+  event_contracts: true
+  schema_validation: true

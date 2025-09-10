@@ -1,0 +1,242 @@
+# Go Project Template for Understand-First
+# ========================================
+#
+# This template is optimized for Go applications with packages, interfaces,
+# and concurrent patterns. It provides comprehensive analysis of Go-specific
+# patterns and best practices.
+
+# Analysis Configuration
+hops: 3
+seeds: []
+
+# Project-specific seed presets for Go
+seeds_for:
+  # Core application files
+  main:
+    - "main.go"
+    - "cmd/**/*.go"
+    - "app.go"
+    - "server.go"
+
+  handlers:
+    - "handlers/*.go"
+    - "*/handlers/*.go"
+    - "*/http/*.go"
+    - "*/api/*.go"
+
+  models:
+    - "models/*.go"
+    - "*/models/*.go"
+    - "*/entities/*.go"
+    - "*/domain/*.go"
+
+  services:
+    - "services/*.go"
+    - "*/services/*.go"
+    - "*/business/*.go"
+    - "*/logic/*.go"
+
+  repositories:
+    - "repositories/*.go"
+    - "*/repositories/*.go"
+    - "*/dao/*.go"
+    - "*/data/*.go"
+
+  middleware:
+    - "middleware/*.go"
+    - "*/middleware/*.go"
+    - "*/middlewares/*.go"
+
+  # Database and data
+  database:
+    - "*/database/*.go"
+    - "*/db/*.go"
+    - "*/connection/*.go"
+    - "*/migrations/*.go"
+
+  # Configuration and utilities
+  config:
+    - "config/*.go"
+    - "*/config/*.go"
+    - "*/settings/*.go"
+    - "*/env/*.go"
+
+  utils:
+    - "utils/*.go"
+    - "*/utils/*.go"
+    - "*/helpers/*.go"
+    - "*/lib/*.go"
+
+  # Testing
+  tests:
+    - "*_test.go"
+    - "**/*_test.go"
+    - "test/*.go"
+    - "*/test/*.go"
+
+  # Common scenarios
+  bug:
+    - "main.go"
+    - "handlers/*.go"
+    - "models/*.go"
+    - "services/*.go"
+
+  feature:
+    - "handlers/*.go"
+    - "models/*.go"
+    - "services/*.go"
+    - "repositories/*.go"
+
+  api_development:
+    - "*/api/*.go"
+    - "*/handlers/*.go"
+    - "*/models/*.go"
+    - "*/middleware/*.go"
+
+  performance:
+    - "*/services/*.go"
+    - "*/database/*.go"
+    - "*/cache/*.go"
+    - "*/utils/*.go"
+
+# Contract Configuration
+contracts_paths:
+  - "contracts/api_contracts.yaml"
+  - "contracts/service_contracts.yaml"
+  - "contracts/interface_contracts.yaml"
+
+# File Patterns
+include_patterns:
+  - "*.go"
+  - "*/go.mod"
+  - "*/go.sum"
+  - "*/Dockerfile"
+  - "*/docker-compose.yml"
+
+exclude_patterns:
+  - "**/vendor/**"
+  - "**/.git/**"
+  - "**/logs/**"
+  - "**/tmp/**"
+  - "**/cache/**"
+  - "**/build/**"
+  - "**/dist/**"
+  - "**/*.log"
+  - "**/coverage.out"
+  - "**/coverage.html"
+
+# Analysis Options
+analysis_options:
+  complexity_analysis: true
+  side_effects: true
+  dependencies: true
+  go_patterns: true
+  interface_analysis: true
+  goroutine_analysis: true
+  package_analysis: true
+  concurrency_analysis: true
+
+# Metrics Configuration
+metrics:
+  enabled: true
+  weekly_reports: true
+  event_tracking: true
+  go_metrics: true
+  performance_metrics: true
+  memory_metrics: true
+  goroutine_metrics: true
+
+# CI/CD Integration
+ci_integration:
+  enabled: true
+  platform: "github"
+  fail_on_issues: true
+  generate_reports: true
+  go_testing: true
+  api_testing: true
+  performance_testing: true
+  race_detection: true
+
+# IDE Integration
+ide_integration:
+  enabled: true
+  type: "vscode"
+  gutter_annotations: true
+  quick_peek: true
+  go_autocomplete: true
+  go_modules: true
+  go_testing: true
+
+# Go-specific settings
+go_settings:
+  # Package analysis
+  package_dependencies: true
+  package_exports: true
+  package_imports: true
+  package_visibility: true
+
+  # Interface analysis
+  interface_implementation: true
+  interface_satisfaction: true
+  interface_composition: true
+  interface_usage: true
+
+  # Concurrency analysis
+  goroutine_analysis: true
+  channel_analysis: true
+  mutex_analysis: true
+  waitgroup_analysis: true
+
+  # Error handling
+  error_handling: true
+  error_propagation: true
+  error_wrapping: true
+  panic_analysis: true
+
+# Advanced Features
+advanced:
+  # Track Go-specific patterns
+  track_interface_usage: true
+  track_goroutine_usage: true
+  track_channel_usage: true
+  track_error_handling: true
+
+  # Performance analysis
+  memory_usage: true
+  cpu_usage: true
+  goroutine_leaks: true
+  garbage_collection: true
+
+  # Security analysis
+  dependency_analysis: true
+  vulnerability_analysis: true
+  input_validation: true
+  authentication: true
+
+  # Concurrency analysis
+  race_conditions: true
+  deadlock_detection: true
+  goroutine_safety: true
+  channel_safety: true
+
+# Documentation
+glossary_path: "docs/glossary.md"
+tour_output: "tours/understanding.md"
+fixtures_path: "fixtures/"
+api_docs_path: "docs/api/"
+
+# Go Modules
+go_modules:
+  enabled: true
+  module_analysis: true
+  dependency_analysis: true
+  version_analysis: true
+  security_audit: true
+
+# Testing
+go_testing:
+  enabled: true
+  unit_tests: true
+  integration_tests: true
+  benchmark_tests: true
+  race_detection: true

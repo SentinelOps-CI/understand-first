@@ -1,6 +1,7 @@
-from .hot_utils import wait_http, wait_grpc_optional
+from examples.app.hot_utils import wait_http, wait_grpc_optional
 from examples.clients.pet_client import list_pets, create_pet, get_pet
 from examples.clients.orders_client import get_order, create_order
+
 
 def run_hot_path():
     wait_http()

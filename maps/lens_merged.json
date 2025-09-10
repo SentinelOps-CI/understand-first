@@ -1,0 +1,37 @@
+{
+  "lens": {
+    "seeds": [
+      "compute"
+    ]
+  },
+  "functions": {
+    "examples/python_toy/pkg/service:compute": {
+      "file": "examples/python_toy/pkg/service.py",
+      "calls": [
+        "add",
+        "maybe_log"
+      ],
+      "error_proximity": 2.5
+    },
+    "examples/python_toy/pkg/util:maybe_log": {
+      "file": "examples/python_toy/pkg/util.py",
+      "calls": [],
+      "error_proximity": 0.115
+    },
+    "examples/python_toy/pkg/service:add": {
+      "file": "examples/python_toy/pkg/service.py",
+      "calls": [],
+      "runtime_hit": true,
+      "error_proximity": 1.5
+    },
+    "examples/python_toy/pkg/__init__:add": {
+      "file": "examples/python_toy/pkg/__init__.py",
+      "calls": [],
+      "runtime_hit": true,
+      "error_proximity": 1.5
+    }
+  },
+  "runtime": {
+    "hit_count": 375
+  }
+}

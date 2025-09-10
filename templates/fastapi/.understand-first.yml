@@ -1,0 +1,243 @@
+# FastAPI Project Template for Understand-First
+# =============================================
+#
+# This template is optimized for FastAPI applications with async patterns,
+# dependency injection, and modern Python features. It provides comprehensive
+# analysis of FastAPI-specific patterns and API design.
+
+# Analysis Configuration
+hops: 3
+seeds: []
+
+# Project-specific seed presets for FastAPI
+seeds_for:
+  # Core FastAPI components
+  main:
+    - "main.py"
+    - "app.py"
+    - "run.py"
+
+  routes:
+    - "*/routes/*.py"
+    - "*/api/*.py"
+    - "*/endpoints/*.py"
+    - "*/routers/*.py"
+
+  models:
+    - "*/models.py"
+    - "*/models/*.py"
+    - "*/schemas.py"
+    - "*/schemas/*.py"
+
+  services:
+    - "*/services/*.py"
+    - "*/core/*.py"
+    - "*/business/*.py"
+    - "*/logic/*.py"
+
+  dependencies:
+    - "*/dependencies.py"
+    - "*/deps.py"
+    - "*/auth.py"
+    - "*/permissions.py"
+
+  middleware:
+    - "*/middleware.py"
+    - "*/middleware/*.py"
+
+  database:
+    - "*/database.py"
+    - "*/db.py"
+    - "*/connection.py"
+    - "*/migrations/*.py"
+
+  # API and endpoints
+  api:
+    - "*/api/*.py"
+    - "*/endpoints/*.py"
+    - "*/routers/*.py"
+    - "*/controllers/*.py"
+
+  # Authentication and security
+  auth:
+    - "*/auth/*.py"
+    - "*/security/*.py"
+    - "*/jwt.py"
+    - "*/oauth.py"
+
+  # Background tasks and workers
+  workers:
+    - "*/workers/*.py"
+    - "*/tasks/*.py"
+    - "*/celery/*.py"
+    - "*/background/*.py"
+
+  # Configuration and settings
+  config:
+    - "*/config.py"
+    - "*/settings.py"
+    - "*/env.py"
+    - "*/constants.py"
+
+  # Testing
+  tests:
+    - "test_*.py"
+    - "*/test_*.py"
+    - "*/tests/*.py"
+    - "*/conftest.py"
+
+  # Common scenarios
+  bug:
+    - "main.py"
+    - "*/routes/*.py"
+    - "*/models.py"
+    - "*/services/*.py"
+
+  feature:
+    - "*/routes/*.py"
+    - "*/models.py"
+    - "*/schemas.py"
+    - "*/services/*.py"
+    - "*/api/*.py"
+
+  api_development:
+    - "*/api/*.py"
+    - "*/routes/*.py"
+    - "*/schemas.py"
+    - "*/dependencies.py"
+
+  performance:
+    - "*/services/*.py"
+    - "*/database.py"
+    - "*/cache.py"
+    - "*/workers/*.py"
+
+  security:
+    - "*/auth/*.py"
+    - "*/security/*.py"
+    - "*/dependencies.py"
+    - "*/middleware.py"
+
+# Contract Configuration
+contracts_paths:
+  - "contracts/api_contracts.yaml"
+  - "contracts/schema_contracts.yaml"
+  - "contracts/endpoint_contracts.yaml"
+
+# File Patterns
+include_patterns:
+  - "*.py"
+  - "*/templates/**/*.html"
+  - "*/static/**/*.js"
+  - "*/static/**/*.css"
+  - "*/static/**/*.json"
+
+exclude_patterns:
+  - "**/__pycache__/**"
+  - "**/venv/**"
+  - "**/env/**"
+  - "**/.git/**"
+  - "**/node_modules/**"
+  - "**/*.pyc"
+  - "**/migrations/**"
+  - "**/logs/**"
+  - "**/cache/**"
+  - "**/tmp/**"
+
+# Analysis Options
+analysis_options:
+  complexity_analysis: true
+  side_effects: true
+  dependencies: true
+  async_patterns: true
+  dependency_injection: true
+  api_analysis: true
+  schema_analysis: true
+  endpoint_analysis: true
+
+# Metrics Configuration
+metrics:
+  enabled: true
+  weekly_reports: true
+  event_tracking: true
+  api_metrics: true
+  performance_metrics: true
+
+# CI/CD Integration
+ci_integration:
+  enabled: true
+  platform: "github"
+  fail_on_issues: true
+  generate_reports: true
+  api_testing: true
+  schema_validation: true
+  performance_testing: true
+
+# IDE Integration
+ide_integration:
+  enabled: true
+  type: "vscode"
+  gutter_annotations: true
+  quick_peek: true
+  fastapi_autocomplete: true
+  schema_support: true
+  endpoint_navigation: true
+
+# FastAPI-specific settings
+fastapi_settings:
+  # API analysis
+  endpoint_analysis: true
+  schema_validation: true
+  dependency_analysis: true
+  middleware_analysis: true
+
+  # Async patterns
+  async_function_analysis: true
+  await_pattern_analysis: true
+  coroutine_analysis: true
+
+  # Pydantic models
+  pydantic_analysis: true
+  schema_relationships: true
+  validation_analysis: true
+
+  # OpenAPI/Swagger
+  openapi_analysis: true
+  swagger_documentation: true
+  api_documentation: true
+
+# Advanced Features
+advanced:
+  # Track FastAPI-specific patterns
+  track_dependency_usage: true
+  track_endpoint_performance: true
+  track_schema_usage: true
+  track_middleware_usage: true
+
+  # API analysis
+  endpoint_complexity: true
+  schema_complexity: true
+  dependency_complexity: true
+
+  # Performance analysis
+  async_performance: true
+  database_performance: true
+  cache_performance: true
+
+  # Security analysis
+  auth_analysis: true
+  cors_analysis: true
+  rate_limiting: true
+
+# Documentation
+glossary_path: "docs/glossary.md"
+tour_output: "tours/understanding.md"
+fixtures_path: "fixtures/"
+api_docs_path: "docs/api/"
+
+# OpenAPI Integration
+openapi:
+  enabled: true
+  generate_docs: true
+  validate_schemas: true
+  track_changes: true

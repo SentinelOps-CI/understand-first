@@ -16,14 +16,3 @@ functions:
     pre: []
     post: []
     side_effects: []
----
-module: PROTO::examples/apis/orders.proto
-functions:
-  GetOrder:
-    pre: []
-    post: []
-    side_effects: []
-  CreateOrder:
-    pre: []
-    post: []
-    side_effects: []

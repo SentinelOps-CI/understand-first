@@ -127,9 +127,7 @@ def cmd_demo(ns: argparse.Namespace) -> int:
     except Exception:
         pass
 
-    http_proc = subprocess.Popen(
-        [sys.executable, "examples/servers/http_server.py"]
-    )  # nosec
+    http_proc = subprocess.Popen([sys.executable, "examples/servers/http_server.py"])  # nosec
     try:
         os.makedirs("traces", exist_ok=True)
         data = run_callable_with_trace("examples/app/hot_path.py", "run_hot_path")
@@ -181,6 +179,24 @@ def cmd_demo(ns: argparse.Namespace) -> int:
         return 0
     finally:
         http_proc.terminate()
+
+
+def cmd_init(ns: argparse.Namespace) -> int:
+    """Initialize Understand-First configuration"""
+    if ns.wizard:
+        # Import and run the wizard from the CLI module
+        try:
+            from cli.ucli.main import _run_config_wizard
+
+            _run_config_wizard()
+            return 0
+        except Exception as e:
+            print(f"Error running configuration wizard: {e}")
+            return 1
+    else:
+        print("Use --wizard flag to run the interactive configuration wizard")
+        print("Example: u init --wizard")
+        return 0
 
 
 def cmd_scan(ns: argparse.Namespace) -> int:
@@ -331,6 +347,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp_demo = sub.add_parser("demo")
     sp_demo.set_defaults(func=cmd_demo)
+
+    sp_init = sub.add_parser("init")
+    sp_init.add_argument(
+        "--wizard", action="store_true", help="Run interactive configuration wizard"
+    )
+    sp_init.set_defaults(func=cmd_init)
 
     # Contracts group (compose, lean-stubs, verify-lean, from-openapi, from-proto)
     sp_contracts = sub.add_parser("contracts")

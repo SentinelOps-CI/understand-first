@@ -1,0 +1,268 @@
+# Flask Project Template for Understand-First
+# ===========================================
+#
+# This template is optimized for Flask web applications with blueprints,
+# extensions, and traditional web patterns. It provides comprehensive
+# analysis of Flask-specific patterns and best practices.
+
+# Analysis Configuration
+hops: 3
+seeds: []
+
+# Project-specific seed presets for Flask
+seeds_for:
+  # Core Flask components
+  main:
+    - "app.py"
+    - "main.py"
+    - "run.py"
+    - "wsgi.py"
+
+  blueprints:
+    - "*/blueprints/*.py"
+    - "*/blueprint*.py"
+    - "*/routes/*.py"
+    - "*/views/*.py"
+
+  models:
+    - "*/models.py"
+    - "*/models/*.py"
+    - "*/database.py"
+    - "*/db.py"
+
+  forms:
+    - "*/forms.py"
+    - "*/forms/*.py"
+    - "*/wtf_forms.py"
+
+  templates:
+    - "*/templates/**/*.html"
+    - "*/templates/**/*.jinja2"
+    - "*/templates/**/*.j2"
+
+  static:
+    - "*/static/**/*.js"
+    - "*/static/**/*.css"
+    - "*/static/**/*.html"
+
+  # API and endpoints
+  api:
+    - "*/api/*.py"
+    - "*/api_*.py"
+    - "*/endpoints/*.py"
+    - "*/rest/*.py"
+
+  # Authentication and security
+  auth:
+    - "*/auth/*.py"
+    - "*/security/*.py"
+    - "*/login.py"
+    - "*/permissions.py"
+
+  # Business logic and services
+  services:
+    - "*/services/*.py"
+    - "*/business/*.py"
+    - "*/logic/*.py"
+    - "*/utils.py"
+
+  # Configuration and settings
+  config:
+    - "*/config.py"
+    - "*/settings.py"
+    - "*/env.py"
+    - "*/constants.py"
+
+  # Extensions and plugins
+  extensions:
+    - "*/extensions.py"
+    - "*/plugins/*.py"
+    - "*/middleware/*.py"
+
+  # Background tasks
+  tasks:
+    - "*/tasks/*.py"
+    - "*/workers/*.py"
+    - "*/celery/*.py"
+    - "*/background/*.py"
+
+  # Testing
+  tests:
+    - "*/test*.py"
+    - "*/tests/*.py"
+    - "*/conftest.py"
+    - "test_*.py"
+
+  # Common scenarios
+  bug:
+    - "app.py"
+    - "*/blueprints/*.py"
+    - "*/models.py"
+    - "*/forms.py"
+
+  feature:
+    - "*/blueprints/*.py"
+    - "*/models.py"
+    - "*/forms.py"
+    - "*/templates/**/*.html"
+    - "*/static/**/*.js"
+
+  api_development:
+    - "*/api/*.py"
+    - "*/blueprints/*.py"
+    - "*/models.py"
+    - "*/services/*.py"
+
+  performance:
+    - "*/services/*.py"
+    - "*/models.py"
+    - "*/cache.py"
+    - "*/database.py"
+
+  security:
+    - "*/auth/*.py"
+    - "*/security/*.py"
+    - "*/permissions.py"
+    - "*/middleware/*.py"
+
+# Contract Configuration
+contracts_paths:
+  - "contracts/api_contracts.yaml"
+  - "contracts/endpoint_contracts.yaml"
+  - "contracts/form_contracts.yaml"
+
+# File Patterns
+include_patterns:
+  - "*.py"
+  - "*/templates/**/*.html"
+  - "*/templates/**/*.jinja2"
+  - "*/static/**/*.js"
+  - "*/static/**/*.css"
+  - "*/static/**/*.html"
+  - "*/static/**/*.json"
+
+exclude_patterns:
+  - "**/__pycache__/**"
+  - "**/venv/**"
+  - "**/env/**"
+  - "**/.git/**"
+  - "**/node_modules/**"
+  - "**/*.pyc"
+  - "**/logs/**"
+  - "**/tmp/**"
+  - "**/cache/**"
+  - "**/migrations/**"
+  - "**/instance/**"
+  - "**/flask_session/**"
+
+# Analysis Options
+analysis_options:
+  complexity_analysis: true
+  side_effects: true
+  dependencies: true
+  flask_patterns: true
+  blueprint_analysis: true
+  template_analysis: true
+  form_analysis: true
+  api_analysis: true
+
+# Metrics Configuration
+metrics:
+  enabled: true
+  weekly_reports: true
+  event_tracking: true
+  flask_metrics: true
+  request_metrics: true
+  performance_metrics: true
+
+# CI/CD Integration
+ci_integration:
+  enabled: true
+  platform: "github"
+  fail_on_issues: true
+  generate_reports: true
+  flask_testing: true
+  template_testing: true
+  api_testing: true
+
+# IDE Integration
+ide_integration:
+  enabled: true
+  type: "vscode"
+  gutter_annotations: true
+  quick_peek: true
+  flask_autocomplete: true
+  template_support: true
+  blueprint_navigation: true
+
+# Flask-specific settings
+flask_settings:
+  # Blueprint analysis
+  blueprint_hierarchy: true
+  blueprint_dependencies: true
+  blueprint_routes: true
+  blueprint_templates: true
+
+  # Template analysis
+  template_inheritance: true
+  template_usage: true
+  template_variables: true
+  template_filters: true
+
+  # Form analysis
+  form_validation: true
+  form_processing: true
+  form_errors: true
+  form_security: true
+
+  # Request/Response analysis
+  request_handling: true
+  response_generation: true
+  error_handling: true
+  middleware_analysis: true
+
+# Advanced Features
+advanced:
+  # Track Flask-specific patterns
+  track_blueprint_usage: true
+  track_template_usage: true
+  track_form_usage: true
+  track_route_usage: true
+
+  # Blueprint analysis
+  blueprint_complexity: true
+  route_complexity: true
+  template_complexity: true
+  form_complexity: true
+
+  # Performance analysis
+  request_performance: true
+  template_performance: true
+  database_performance: true
+  cache_performance: true
+
+  # Security analysis
+  csrf_analysis: true
+  session_analysis: true
+  auth_analysis: true
+  input_validation: true
+
+# Documentation
+glossary_path: "docs/glossary.md"
+tour_output: "tours/understanding.md"
+fixtures_path: "fixtures/"
+api_docs_path: "docs/api/"
+
+# Flask Extensions
+flask_extensions:
+  enabled: true
+  track_extensions: true
+  extension_usage: true
+  extension_dependencies: true
+
+# Template Engine
+template_engine:
+  enabled: true
+  jinja2_analysis: true
+  template_optimization: true
+  template_debugging: true

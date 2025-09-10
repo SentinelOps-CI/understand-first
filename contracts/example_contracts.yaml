@@ -1,0 +1,30 @@
+# Example Contract for custom Project
+
+This is an example contract file that defines API specifications and formal verification requirements.
+
+## Contract Definition
+
+```yaml
+# Example API contract
+ROUTE::api:
+  GET /health:
+    request_schema: {}
+    response_schema:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+        timestamp:
+          type: string
+          format: date-time
+    preconditions: []
+    postconditions: ["response.status_code == 200"]
+    side_effects: []
+```
+
+## Usage
+
+1. Define your API contracts in this file
+2. Run `u contracts verify` to check compliance
+3. Generate property tests with `u contracts stub-tests`

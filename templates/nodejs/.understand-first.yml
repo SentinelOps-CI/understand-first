@@ -1,0 +1,223 @@
+# Node.js Project Template for Understand-First
+# =============================================
+#
+# This template is optimized for Node.js applications with Express,
+# middleware, and modern JavaScript patterns. It provides comprehensive
+# analysis of Node.js-specific patterns and best practices.
+
+# Analysis Configuration
+hops: 3
+seeds: []
+
+# Project-specific seed presets for Node.js
+seeds_for:
+  # Core application files
+  main:
+    - "app.js"
+    - "server.js"
+    - "index.js"
+    - "main.js"
+
+  routes:
+    - "routes/*.js"
+    - "*/routes/*.js"
+    - "*/api/*.js"
+    - "*/endpoints/*.js"
+
+  controllers:
+    - "controllers/*.js"
+    - "*/controllers/*.js"
+    - "*/handlers/*.js"
+    - "*/actions/*.js"
+
+  models:
+    - "models/*.js"
+    - "*/models/*.js"
+    - "*/schemas/*.js"
+    - "*/entities/*.js"
+
+  services:
+    - "services/*.js"
+    - "*/services/*.js"
+    - "*/business/*.js"
+    - "*/logic/*.js"
+
+  middleware:
+    - "middleware/*.js"
+    - "*/middleware/*.js"
+    - "*/middlewares/*.js"
+
+  # Database and data
+  database:
+    - "*/database/*.js"
+    - "*/db/*.js"
+    - "*/connection/*.js"
+    - "*/migrations/*.js"
+
+  # Configuration and utilities
+  config:
+    - "config/*.js"
+    - "*/config/*.js"
+    - "*/settings/*.js"
+    - "*/env/*.js"
+
+  utils:
+    - "utils/*.js"
+    - "*/utils/*.js"
+    - "*/helpers/*.js"
+    - "*/lib/*.js"
+
+  # Testing
+  tests:
+    - "test/*.js"
+    - "*/test/*.js"
+    - "**/*.test.js"
+    - "**/*.spec.js"
+    - "tests/*.js"
+
+  # Common scenarios
+  bug:
+    - "app.js"
+    - "server.js"
+    - "routes/*.js"
+    - "controllers/*.js"
+
+  feature:
+    - "routes/*.js"
+    - "controllers/*.js"
+    - "models/*.js"
+    - "services/*.js"
+
+  api_development:
+    - "*/api/*.js"
+    - "*/routes/*.js"
+    - "*/controllers/*.js"
+    - "*/middleware/*.js"
+
+  performance:
+    - "*/services/*.js"
+    - "*/database/*.js"
+    - "*/cache/*.js"
+    - "*/utils/*.js"
+
+# Contract Configuration
+contracts_paths:
+  - "contracts/api_contracts.yaml"
+  - "contracts/endpoint_contracts.yaml"
+  - "contracts/schema_contracts.yaml"
+
+# File Patterns
+include_patterns:
+  - "*.js"
+  - "*.json"
+  - "*.ts"
+  - "*.jsx"
+  - "*.tsx"
+
+exclude_patterns:
+  - "**/node_modules/**"
+  - "**/build/**"
+  - "**/dist/**"
+  - "**/.git/**"
+  - "**/coverage/**"
+  - "**/.nyc_output/**"
+  - "**/logs/**"
+  - "**/tmp/**"
+  - "**/cache/**"
+  - "**/*.log"
+  - "**/package-lock.json"
+  - "**/yarn.lock"
+
+# Analysis Options
+analysis_options:
+  complexity_analysis: true
+  side_effects: true
+  dependencies: true
+  nodejs_patterns: true
+  async_patterns: true
+  middleware_analysis: true
+  api_analysis: true
+  module_analysis: true
+
+# Metrics Configuration
+metrics:
+  enabled: true
+  weekly_reports: true
+  event_tracking: true
+  nodejs_metrics: true
+  performance_metrics: true
+  memory_metrics: true
+
+# CI/CD Integration
+ci_integration:
+  enabled: true
+  platform: "github"
+  fail_on_issues: true
+  generate_reports: true
+  nodejs_testing: true
+  api_testing: true
+  performance_testing: true
+
+# IDE Integration
+ide_integration:
+  enabled: true
+  type: "vscode"
+  gutter_annotations: true
+  quick_peek: true
+  nodejs_autocomplete: true
+  typescript_support: true
+  npm_support: true
+
+# Node.js-specific settings
+nodejs_settings:
+  # Module analysis
+  module_dependencies: true
+  module_exports: true
+  module_imports: true
+  module_resolution: true
+
+  # Async patterns
+  promise_analysis: true
+  async_await_analysis: true
+  callback_analysis: true
+  event_emitter_analysis: true
+
+  # Express patterns
+  route_analysis: true
+  middleware_analysis: true
+  request_analysis: true
+  response_analysis: true
+
+# Advanced Features
+advanced:
+  # Track Node.js-specific patterns
+  track_module_usage: true
+  track_async_usage: true
+  track_middleware_usage: true
+  track_error_handling: true
+
+  # Performance analysis
+  memory_usage: true
+  cpu_usage: true
+  event_loop_analysis: true
+  garbage_collection: true
+
+  # Security analysis
+  dependency_analysis: true
+  vulnerability_analysis: true
+  input_validation: true
+  authentication: true
+
+# Documentation
+glossary_path: "docs/glossary.md"
+tour_output: "tours/understanding.md"
+fixtures_path: "fixtures/"
+api_docs_path: "docs/api/"
+
+# Package Management
+package_management:
+  enabled: true
+  npm_analysis: true
+  dependency_analysis: true
+  version_analysis: true
+  security_audit: true

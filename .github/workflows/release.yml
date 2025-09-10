@@ -1,0 +1,55 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Build CLI dist (wheel/sdist)
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build cli
+          mkdir -p dist
+          cp cli/dist/* dist/
+      - name: Build VS Code extension (.vsix)
+        run: |
+          cd ide/vscode/understand-first
+          npm ci || npm install
+          npx --yes @vscode/vsce package --no-yarn --skip-license
+          mkdir -p ../../..
+          cp *.vsix ../../../dist/
+      - name: Compute VSIX checksum
+        run: |
+          cd dist
+          sha256sum *.vsix > VSIX_SHA256.txt
+      - name: Prepare release notes
+        run: |
+          echo "# Release" > dist/RELEASE_NOTES.md
+          echo "\n## VSIX SHA256" >> dist/RELEASE_NOTES.md
+          cat dist/VSIX_SHA256.txt >> dist/RELEASE_NOTES.md
+      - name: Build understanding pack
+        run: |
+          python -m pip install -r requirements.txt
+          python -m pip install -e cli
+          u pack --publish
+          mkdir -p dist
+          cp -r dist/* dist/
+      - name: Upload artifacts
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: dist/RELEASE_NOTES.md
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
+            dist/*.vsix
+            dist/*.zip
+            dist/VSIX_SHA256.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

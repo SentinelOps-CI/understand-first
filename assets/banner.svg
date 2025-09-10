@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 320" width="1200" height="320" role="img" aria-labelledby="title desc">
+  <title id="title">Understand-First banner</title>
+  <desc id="desc">A gradient banner with subtle graph nodes and the text Understand-First — Generate understanding, not just code.</desc>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="60%" stop-color="#06b6d4"/>
+      <stop offset="100%" stop-color="#6366f1"/>
+    </linearGradient>
+    <linearGradient id="gl" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect x="0" y="0" width="1200" height="320" rx="18" fill="url(#g)"/>
+  <rect x="0" y="0" width="1200" height="320" rx="18" fill="url(#gl)"/>
+
+  <!-- Subtle network motif -->
+  <g opacity="0.25" stroke="#ffffff" stroke-width="2" fill="none">
+    <path d="M80,220 C220,140 360,260 500,180 640,100 780,200 920,140 1040,88 1120,140 1160,120"/>
+    <path d="M120,260 C260,180 400,260 540,200 680,140 820,220 960,160"/>
+  </g>
+  <g opacity="0.65" fill="#ffffff">
+    <circle cx="160" cy="210" r="5"/>
+    <circle cx="320" cy="180" r="5"/>
+    <circle cx="480" cy="200" r="5"/>
+    <circle cx="640" cy="150" r="5"/>
+    <circle cx="800" cy="195" r="5"/>
+    <circle cx="960" cy="160" r="5"/>
+    <circle cx="1080" cy="140" r="5"/>
+  </g>
+
+  <!-- Title and tagline -->
+  <g fill="#ffffff" font-family="system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">
+    <text x="80" y="120" font-size="56" font-weight="700" letter-spacing="0.5">Understand‑First</text>
+    <text x="80" y="160" font-size="22" opacity="0.95">Generate understanding, not just code</text>
+    <text x="80" y="200" font-size="16" opacity="0.85">Maps • Traces • Tours • Contracts • TTU</text>
+  </g>
+
+  <!-- Accent blocks -->
+  <g opacity="0.18">
+    <rect x="80" y="230" width="140" height="8" rx="4" fill="#ffffff"/>
+    <rect x="232" y="230" width="90" height="8" rx="4" fill="#ffffff"/>
+    <rect x="334" y="230" width="60" height="8" rx="4" fill="#ffffff"/>
+  </g>
+</svg>

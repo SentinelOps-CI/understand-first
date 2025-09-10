@@ -1,0 +1,35 @@
+image: python:3.10-slim
+
+pipelines:
+  pull-requests:
+    '**':
+      - step:
+          name: Build lens & tour
+          caches:
+            - pip
+          script:
+            - python -m pip install -r requirements.txt
+            - python -m pip install -e cli
+            - u scan examples/python_toy -o maps/repo.json
+            - u lens preset bug --map maps/repo.json -o maps/lens.json || true
+            - u trace module examples/app/hot_path.py run_hot_path -o traces/tour.json || true
+            - u lens merge-trace maps/lens.json traces/tour.json -o maps/lens_merged.json || true
+            - u tour maps/lens_merged.json -o tours/PR.md || true
+            - u visual delta maps/lens.json maps/lens_merged.json -o maps/delta.svg || true
+          artifacts:
+            - tours/PR.md
+            - maps/delta.svg
+            - docs/**
+      - step:
+          name: Tour gate
+          script:
+            - python -m pip install -r requirements.txt -e cli
+            - u tour_run maps/lens_merged.json -f fixtures
+      - step:
+          name: Comment MR
+          script:
+            - |
+              curl -X POST -H "Content-Type: application/json" -u "$BITBUCKET_USERNAME:$BITBUCKET_APP_PASSWORD" \
+                -d '{"content": {"raw": "See artifacts: tours/PR.md, maps/delta.svg"}}' \
+                "https://api.bitbucket.org/2.0/repositories/$BITBUCKET_REPO_FULL_NAME/pullrequests/$BITBUCKET_PR_ID/comments" || true
+

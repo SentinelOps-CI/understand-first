@@ -1,0 +1,16 @@
+{
+  "name": "understand-first",
+  "displayName": "Understand-First (TTU)",
+  "version": "0.1.0",
+  "engines": { "vscode": "^1.90.0" },
+  "activationEvents": ["onStartupFinished", "onCommand:understandFirst.showTour", "onCommand:understandFirst.explainErrorPropagation"],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      { "command": "understandFirst.generatePropertyTest", "title": "Understand-First: Generate Property Test" },
+      { "command": "understandFirst.openGlossary", "title": "Understand-First: Open Glossary" },
+      { "command": "understandFirst.showTour", "title": "Understand-First: Show Tour" },
+      { "command": "understandFirst.explainErrorPropagation", "title": "Understand-First: Explain Error Propagation" }
+    ]
+  }
+}

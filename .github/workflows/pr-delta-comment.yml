@@ -1,0 +1,38 @@
+name: PR Delta Comment
+on:
+  pull_request:
+    types: [opened, synchronize]
+jobs:
+  delta:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install CLI
+        run: |
+          cd cli && pip install -e .
+      - name: Build lens (base)
+        run: |
+          git fetch origin ${{ github.base_ref }} --depth=1 || true
+          git checkout -qf ${{ github.base_ref }} || true
+          u scan . -o maps/repo_base.json || true
+          u lens from-seeds --seed $(git ls-files | head -n 30) --map maps/repo_base.json -o maps/lens_base.json || true
+      - name: Build lens (head)
+        run: |
+          git checkout -qf ${{ github.sha }}
+          u scan . -o maps/repo_head.json || true
+          u lens from-seeds --seed $(git diff --name-only ${{ github.base_ref }} | tr '\n' ' ') --map maps/repo_head.json -o maps/lens_head.json || true
+      - name: Visualize delta
+        run: |
+          u visual delta maps/lens_base.json maps/lens_head.json -o maps/delta.svg || true
+      - name: Comment on PR with delta
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let svg = ''; try { svg = fs.readFileSync('maps/delta.svg', 'utf8'); } catch(e) {}
+            const b64 = Buffer.from(svg).toString('base64');
+            const body = `### Understand-First Delta\n<img alt="delta" src="data:image/svg+xml;base64,${b64}" />`;
+            github.rest.issues.createComment({ ...context.repo, issue_number: context.issue.number, body });

@@ -1,0 +1,39 @@
+name: Publish Understanding Pack
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [ main ]
+    paths: [ 'tours/**', 'docs/**', 'maps/**' ]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: |
+          pip install -e cli
+          u pack --publish
+      - name: Prepare site
+        run: |
+          mkdir -p site
+          echo "<h1>Understanding Pack</h1><ul>" > site/index.html
+          for f in docs/glossary.md docs/understanding-dashboard.md; do
+            test -f "$f" && echo "<li><a href='/$f'>$f</a></li>" >> site/index.html
+          done
+          test -f maps/delta.svg && cp maps/delta.svg site/delta.svg && echo "<li><a href='/site/delta.svg'>delta.svg</a></li>" >> site/index.html || true
+          echo "</ul>" >> site/index.html
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: '.' }
+  deploy:
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

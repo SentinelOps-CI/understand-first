@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68", "wheel", "build"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "understand-first"
+version = "0.3.0"
+description = "Understand-First: maps, lenses, tours that make reading code faster than writing it."
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{name="UF Team"}]
+dependencies = [
+    "typer>=0.9",
+    "rich>=13.7",
+    "pyyaml>=6.0",
+    "requests>=2.31"
+]
+
+[project.scripts]
+u = "ucli.main:app"
+
+[tool.setuptools]
+packages = ["ucli"]
+package-dir = {"" = "."}
+include-package-data = true

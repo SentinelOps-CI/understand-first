@@ -1,0 +1,29 @@
+module: ROUTE::/pets
+functions:
+  get_pets:
+    pre: []
+    post: []
+    side_effects: []
+    response_meta: {"type":"array","items":{"$ref":"#/components/schemas/Pet"}}
+  post_pets:
+    pre: []
+    post: []
+    side_effects: []
+---
+module: ROUTE::/pets/{id}
+functions:
+  get_pets_id:
+    pre: []
+    post: []
+    side_effects: []
+---
+module: PROTO::examples/apis/orders.proto
+functions:
+  GetOrder:
+    pre: []
+    post: []
+    side_effects: []
+  CreateOrder:
+    pre: []
+    post: []
+    side_effects: []

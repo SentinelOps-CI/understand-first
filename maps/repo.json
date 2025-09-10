@@ -1,0 +1,24 @@
+{
+  "language": "python",
+  "functions": {
+    "examples/python_toy/pkg/service:compute": {
+      "file": "examples/python_toy/pkg/service.py",
+      "calls": [
+        "add",
+        "maybe_log"
+      ]
+    },
+    "examples/python_toy/pkg/service:add": {
+      "file": "examples/python_toy/pkg/service.py",
+      "calls": []
+    },
+    "examples/python_toy/pkg/util:maybe_log": {
+      "file": "examples/python_toy/pkg/util.py",
+      "calls": []
+    },
+    "examples/python_toy/pkg/__init__:add": {
+      "file": "examples/python_toy/pkg/__init__.py",
+      "calls": []
+    }
+  }
+}

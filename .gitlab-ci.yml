@@ -1,0 +1,41 @@
+stages:
+  - build
+  - tour
+  - comment
+
+variables:
+  PIP_DISABLE_PIP_VERSION_CHECK: '1'
+
+build_lens:
+  stage: build
+  image: python:3.10-slim
+  script:
+    - python -m pip install -r requirements.txt
+    - python -m pip install -e cli
+    - u scan examples/python_toy -o maps/repo.json
+    - u lens preset bug --map maps/repo.json -o maps/lens.json || true
+    - u trace module examples/app/hot_path.py run_hot_path -o traces/tour.json || true
+    - u lens merge-trace maps/lens.json traces/tour.json -o maps/lens_merged.json || true
+    - u tour maps/lens_merged.json -o tours/PR.md || true
+    - u visual delta maps/lens.json maps/lens_merged.json -o maps/delta.svg || true
+  artifacts:
+    paths:
+      - tours/PR.md
+      - maps/delta.svg
+      - docs/
+
+tour_gate:
+  stage: tour
+  image: python:3.10-slim
+  script:
+    - python -m pip install -r requirements.txt -e cli
+    - u tour_run maps/lens_merged.json -f fixtures || (echo "Tour failed" && exit 1)
+
+comment:
+  stage: comment
+  image: curlimages/curl:8.8.0
+  script:
+    - 'curl --header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" --data-urlencode "body=See artifacts: tours/PR.md, maps/delta.svg" "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}/notes" || true'
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+

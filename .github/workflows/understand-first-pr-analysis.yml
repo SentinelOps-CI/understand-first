@@ -1,0 +1,245 @@
+name: Understand-First PR Analysis
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+jobs:
+  analyze-pr:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: write
+      actions: read
+      statuses: write
+      issues: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full history for diff analysis
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install typer rich aiohttp asyncpg pydantic
+          # Install understand-first CLI
+          pip install -e ./cli
+
+      - name: Run understand-first analysis on base commit
+        id: analyze-base
+        run: |
+          echo "Analyzing base commit..."
+          u analyze --output base-analysis.json --format json
+          echo "base_analysis_file=base-analysis.json" >> $GITHUB_OUTPUT
+
+      - name: Run understand-first analysis on PR head
+        id: analyze-head
+        run: |
+          echo "Analyzing PR head commit..."
+          u analyze --output head-analysis.json --format json
+          echo "head_analysis_file=head-analysis.json" >> $GITHUB_OUTPUT
+
+      - name: Generate delta analysis
+        id: delta-analysis
+        run: |
+          echo "Generating delta analysis..."
+          u diff base-analysis.json head-analysis.json \
+            --output pr-delta.json \
+            --format json \
+            --policy-check \
+            --verbose
+          echo "delta_file=pr-delta.json" >> $GITHUB_OUTPUT
+
+      - name: Generate PR comment
+        id: pr-comment
+        run: |
+          echo "Generating PR comment..."
+          u diff base-analysis.json head-analysis.json \
+            --output pr-comment.md \
+            --format markdown \
+            --policy-check
+          echo "comment_file=pr-comment.md" >> $GITHUB_OUTPUT
+
+      - name: Generate mini-map visualization
+        id: minimap
+        run: |
+          echo "Generating mini-map..."
+          u diff base-analysis.json head-analysis.json \
+            --output pr-minimap.svg \
+            --format svg
+          echo "minimap_file=pr-minimap.svg" >> $GITHUB_OUTPUT
+
+      - name: Check policy compliance
+        id: policy-check
+        run: |
+          echo "Checking policy compliance..."
+          u diff base-analysis.json head-analysis.json \
+            --policy-check \
+            --output policy-report.json \
+            --format json
+          POLICY_EXIT_CODE=$?
+          echo "policy_exit_code=$POLICY_EXIT_CODE" >> $GITHUB_OUTPUT
+          echo "Policy check exit code: $POLICY_EXIT_CODE"
+
+      - name: Upload analysis artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: understand-first-analysis
+          path: |
+            base-analysis.json
+            head-analysis.json
+            pr-delta.json
+            pr-comment.md
+            pr-minimap.svg
+            policy-report.json
+
+      - name: Post PR comment
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            // Read the generated comment
+            const commentContent = fs.readFileSync('${{ steps.pr-comment.outputs.comment_file }}', 'utf8');
+
+            // Read policy report
+            const policyReport = JSON.parse(fs.readFileSync('policy-report.json', 'utf8'));
+
+            // Create enhanced comment with mini-map
+            const minimapBase64 = fs.readFileSync('${{ steps.minimap.outputs.minimap_file }}', 'base64');
+            const minimapDataUrl = `data:image/svg+xml;base64,${minimapBase64}`;
+
+            const enhancedComment = `
+            ## 🔍 Understand-First PR Analysis
+
+            ${commentContent}
+
+            ### 📊 Mini-Map Visualization
+            <img src="${minimapDataUrl}" alt="Code Map Delta" width="100%" />
+
+            ### ✅ Policy Compliance Checklist
+            ${policyReport.violations.length === 0 ? 
+              '✅ **All policies passed!** No violations detected.' : 
+              policyReport.violations.map(v => `❌ **${v.rule}**: ${v.description}`).join('\n')
+            }
+
+            ### 📈 Key Metrics
+            - **Functions Added**: ${policyReport.delta.functions_added.length}
+            - **Functions Removed**: ${policyReport.delta.functions_removed.length}
+            - **Functions Modified**: ${policyReport.delta.functions_modified.length}
+            - **Complexity Change**: ${policyReport.delta.complexity_change > 0 ? '+' : ''}${policyReport.delta.complexity_change}
+            - **Side Effects**: ${policyReport.delta.side_effects_added.length} added, ${policyReport.delta.side_effects_removed.length} removed
+
+            ---
+            *Generated by [Understand-First](https://github.com/your-org/understand-first) • [View full analysis](${context.payload.pull_request.html_url}/checks)*
+            `;
+
+            // Find existing comment
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const existingComment = comments.data.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('Understand-First PR Analysis')
+            );
+
+            if (existingComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: enhancedComment
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: enhancedComment
+              });
+            }
+
+      - name: Create Check Run
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const policyReport = JSON.parse(fs.readFileSync('policy-report.json', 'utf8'));
+            const policyExitCode = ${{ steps.policy-check.outputs.policy_exit_code }};
+
+            const conclusion = policyExitCode === 0 ? 'success' : 'failure';
+            const title = policyExitCode === 0 ? 
+              '✅ Understand-First Policy Check Passed' : 
+              '❌ Understand-First Policy Check Failed';
+
+            const summary = policyExitCode === 0 ? 
+              'All code quality policies passed. The PR is safe to merge.' :
+              `${policyReport.violations.length} policy violations detected. Please review before merging.`;
+
+            const details = policyReport.violations.map(v => 
+              `**${v.rule}**: ${v.description}\n` +
+              `- Function: ${v.function_name}\n` +
+              `- Severity: ${v.severity}\n` +
+              `- File: ${v.file_path}:${v.line_number}`
+            ).join('\n\n');
+
+            await github.rest.checks.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              name: 'Understand-First Analysis',
+              head_sha: context.sha,
+              status: 'completed',
+              conclusion: conclusion,
+              output: {
+                title: title,
+                summary: summary,
+                text: details || 'No violations found.'
+              },
+              actions: [
+                {
+                  label: 'View Full Report',
+                  description: 'Open detailed analysis report',
+                  identifier: 'view-report'
+                },
+                {
+                  label: 'Download Artifacts',
+                  description: 'Download analysis artifacts',
+                  identifier: 'download-artifacts'
+                }
+              ]
+            });
+
+      - name: Set commit status
+        if: always()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const policyExitCode = ${{ steps.policy-check.outputs.policy_exit_code }};
+            const state = policyExitCode === 0 ? 'success' : 'failure';
+            const description = policyExitCode === 0 ? 
+              'Understand-First: All policies passed' : 
+              'Understand-First: Policy violations detected';
+
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              state: state,
+              description: description,
+              context: 'understand-first/policy-check'
+            });

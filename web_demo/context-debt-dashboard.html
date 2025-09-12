@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Context Debt Dashboard - Understand-First</title>
+    <style>
+        :root {
+            --primary-color: #007acc;
+            --secondary-color: #6c757d;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --info-color: #17a2b8;
+            --light-color: #f8f9fa;
+            --dark-color: #343a40;
+            --border-color: #dee2e6;
+            --shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            --border-radius: 0.375rem;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--dark-color);
+            background-color: var(--light-color);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary-color), var(--info-color));
+            color: white;
+            padding: 2rem;
+            border-radius: var(--border-radius);
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .card-icon {
+            font-size: 2rem;
+            margin-right: 0.75rem;
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--dark-color);
+        }
+
+        .metric {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-label {
+            color: var(--secondary-color);
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+
+        .trend {
+            display: flex;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+
+        .trend-icon {
+            margin-right: 0.5rem;
+        }
+
+        .trend-up { color: var(--danger-color); }
+        .trend-down { color: var(--success-color); }
+        .trend-stable { color: var(--info-color); }
+
+        .complexity-good { color: var(--success-color); }
+        .complexity-medium { color: var(--warning-color); }
+        .complexity-high { color: var(--danger-color); }
+
+        .side-effects-good { color: var(--success-color); }
+        .side-effects-warning { color: var(--warning-color); }
+        .side-effects-danger { color: var(--danger-color); }
+
+        .understanding-excellent { color: var(--success-color); }
+        .understanding-good { color: var(--info-color); }
+        .understanding-fair { color: var(--warning-color); }
+        .understanding-poor { color: var(--danger-color); }
+
+        .chart-container {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+            margin-bottom: 2rem;
+        }
+
+        .chart-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--dark-color);
+        }
+
+        .chart {
+            height: 300px;
+            background: var(--light-color);
+            border-radius: var(--border-radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--secondary-color);
+        }
+
+        .insights {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+        }
+
+        .insights h3 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--dark-color);
+        }
+
+        .insight-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: var(--light-color);
+            border-radius: var(--border-radius);
+        }
+
+        .insight-icon {
+            font-size: 1.5rem;
+            margin-right: 1rem;
+            margin-top: 0.25rem;
+        }
+
+        .insight-content h4 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--dark-color);
+        }
+
+        .insight-content p {
+            color: var(--secondary-color);
+            font-size: 0.9rem;
+        }
+
+        .actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0056b3;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: var(--secondary-color);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #545b62;
+            transform: translateY(-1px);
+        }
+
+        .btn-success {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #1e7e34;
+            transform: translateY(-1px);
+        }
+
+        .btn-info {
+            background: var(--info-color);
+            color: white;
+        }
+
+        .btn-info:hover {
+            background: #138496;
+            transform: translateY(-1px);
+        }
+
+        .btn-warning {
+            background: var(--warning-color);
+            color: var(--dark-color);
+        }
+
+        .btn-warning:hover {
+            background: #e0a800;
+            transform: translateY(-1px);
+        }
+
+        .lens-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .lens-card {
+            background: var(--light-color);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            text-align: center;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .lens-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+
+        .lens-card h4 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--dark-color);
+        }
+
+        .lens-card p {
+            color: var(--secondary-color);
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+
+        .lens-card .btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background-color: var(--light-color);
+            margin: 5% auto;
+            padding: 0;
+            border-radius: var(--border-radius);
+            width: 80%;
+            max-width: 600px;
+            box-shadow: var(--shadow);
+        }
+
+        .modal-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            color: var(--dark-color);
+        }
+
+        .close {
+            color: var(--secondary-color);
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: var(--dark-color);
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+        }
+
+        .modal-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--border-color);
+            text-align: right;
+        }
+
+        .hot-path-list, .side-effect-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .hot-path-item, .side-effect-item {
+            background: var(--light-color);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 1rem;
+        }
+
+        .function-name {
+            font-weight: 600;
+            color: var(--dark-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .function-stats {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.9rem;
+            color: var(--secondary-color);
+        }
+
+        .calls {
+            color: var(--primary-color);
+        }
+
+        .complexity {
+            color: var(--warning-color);
+        }
+
+        .effects {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .effect-tag {
+            background: var(--warning-color);
+            color: var(--dark-color);
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+        }
+
+        /* Notification styles */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem 1.5rem;
+            border-radius: var(--border-radius);
+            color: white;
+            font-weight: 500;
+            z-index: 1001;
+            animation: slideIn 0.3s ease;
+        }
+
+        .notification-info {
+            background: var(--info-color);
+        }
+
+        .notification-success {
+            background: var(--success-color);
+        }
+
+        .notification-warning {
+            background: var(--warning-color);
+            color: var(--dark-color);
+        }
+
+        .notification-error {
+            background: var(--error-color);
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 200px;
+            color: var(--secondary-color);
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--border-color);
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            border: 1px solid #f5c6cb;
+            margin-bottom: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+
+            .actions {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧠 Context Debt Dashboard</h1>
+            <p>Monitor code understanding metrics and technical debt trends</p>
+        </div>
+
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <span>Loading analysis data...</span>
+        </div>
+
+        <div id="error" class="error" style="display: none;">
+            <strong>Error:</strong> <span id="error-message"></span>
+        </div>
+
+        <div id="dashboard" style="display: none;">
+            <div class="dashboard">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon">📊</div>
+                        <div class="card-title">Code Complexity</div>
+                    </div>
+                    <div class="metric complexity-good" id="avg-complexity">-</div>
+                    <div class="metric-label">Average function complexity</div>
+                    <div class="trend">
+                        <span class="trend-icon" id="complexity-trend-icon">📈</span>
+                        <span id="complexity-trend-text">Loading...</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon">⚠️</div>
+                        <div class="card-title">Side Effects</div>
+                    </div>
+                    <div class="metric side-effects-good" id="side-effects-count">-</div>
+                    <div class="metric-label">Functions with side effects</div>
+                    <div class="trend">
+                        <span class="trend-icon" id="side-effects-trend-icon">📊</span>
+                        <span id="side-effects-trend-text">Loading...</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon">🔗</div>
+                        <div class="card-title">Dependencies</div>
+                    </div>
+                    <div class="metric" id="dependencies-count">-</div>
+                    <div class="metric-label">Function dependencies</div>
+                    <div class="trend">
+                        <span class="trend-icon" id="dependencies-trend-icon">🔗</span>
+                        <span id="dependencies-trend-text">Loading...</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon">📈</div>
+                        <div class="card-title">Understanding Score</div>
+                    </div>
+                    <div class="metric understanding-excellent" id="understanding-score">-</div>
+                    <div class="metric-label">Overall code understandability</div>
+                    <div class="trend">
+                        <span class="trend-icon" id="understanding-trend-icon">📊</span>
+                        <span id="understanding-trend-text">Loading...</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-title">Complexity Trend Over Time</div>
+                <div class="chart" id="complexity-chart">
+                    <div>Chart visualization would go here</div>
+                </div>
+            </div>
+
+            <div class="insights">
+                <h3>💡 Key Insights</h3>
+                <div id="insights-list">
+                    <!-- Insights will be populated dynamically -->
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-title">Function Complexity Distribution</div>
+                <div class="chart" id="complexity-distribution-chart">
+                    <div>Complexity distribution chart would go here</div>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-title">Understanding Score Trends</div>
+                <div class="chart" id="understanding-trends-chart">
+                    <div>Understanding trends chart would go here</div>
+                </div>
+            </div>
+
+            <div class="insights">
+                <h3>🎯 Lens Creation & Management</h3>
+                <div class="lens-actions">
+                    <div class="lens-card">
+                        <h4>📊 Create New Lens</h4>
+                        <p>Generate a focused understanding lens for specific functions or modules</p>
+                        <button class="btn btn-primary" id="create-lens-btn">Create Lens</button>
+                    </div>
+                    <div class="lens-card">
+                        <h4>🔍 Analyze Hot Paths</h4>
+                        <p>Identify and analyze the most frequently called functions</p>
+                        <button class="btn btn-secondary" id="analyze-hot-paths-btn">Analyze Hot Paths</button>
+                    </div>
+                    <div class="lens-card">
+                        <h4>⚠️ Review Side Effects</h4>
+                        <p>Focus on functions with side effects for better testing and documentation</p>
+                        <button class="btn btn-warning" id="review-side-effects-btn">Review Side Effects</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="actions">
+                <a href="#" class="btn btn-primary" id="refresh-btn">
+                    🔄 Refresh Analysis
+                </a>
+                <a href="#" class="btn btn-secondary" id="export-btn">
+                    📊 Export Report
+                </a>
+                <a href="#" class="btn btn-success" id="tour-btn">
+                    📖 View Understanding Tour
+                </a>
+                <a href="#" class="btn btn-info" id="map-btn">
+                    🗺️ Open Code Map
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class ContextDebtDashboard {
+            constructor() {
+                this.data = null;
+                this.init();
+            }
+
+            init() {
+                this.loadData();
+                this.setupEventListeners();
+            }
+
+            async loadData() {
+                try {
+                    // Try to load from CI artifacts first
+                    const ciData = await this.loadCIData();
+                    if (ciData) {
+                        this.data = ciData;
+                        this.renderDashboard();
+                        return;
+                    }
+
+                    // Fallback to demo data
+                    this.data = this.generateDemoData();
+                    this.renderDashboard();
+                } catch (error) {
+                    this.showError('Failed to load analysis data: ' + error.message);
+                }
+            }
+
+            async loadCIData() {
+                try {
+                    // Try to load from various possible locations
+                    const urls = [
+                        'ci-artifacts/ci-report.md',
+                        'ci-artifacts/ci-summary.json',
+                        'maps/lens.json',
+                        'maps/repo.json'
+                    ];
+
+                    for (const url of urls) {
+                        try {
+                            const response = await fetch(url);
+                            if (response.ok) {
+                                const data = await response.text();
+                                return this.parseAnalysisData(data, url);
+                            }
+                        } catch (e) {
+                            // Continue to next URL
+                        }
+                    }
+                    return null;
+                } catch (error) {
+                    console.warn('Could not load CI data:', error);
+                    return null;
+                }
+            }
+
+            parseAnalysisData(data, url) {
+                if (url.endsWith('.json')) {
+                    return JSON.parse(data);
+                } else if (url.endsWith('.md')) {
+                    return this.parseMarkdownReport(data);
+                }
+                return null;
+            }
+
+            parseMarkdownReport(markdown) {
+                const metrics = {};
+                
+                // Extract metrics using regex
+                const complexityMatch = markdown.match(/Average Complexity.*?(\d+\.?\d*)/);
+                if (complexityMatch) {
+                    metrics.avgComplexity = parseFloat(complexityMatch[1]);
+                }
+
+                const sideEffectsMatch = markdown.match(/Functions with Side Effects.*?(\d+)/);
+                if (sideEffectsMatch) {
+                    metrics.sideEffectsCount = parseInt(sideEffectsMatch[1]);
+                }
+
+                const functionsMatch = markdown.match(/Functions Analyzed.*?(\d+)/);
+                if (functionsMatch) {
+                    metrics.totalFunctions = parseInt(functionsMatch[1]);
+                }
+
+                return metrics;
+            }
+
+            generateDemoData() {
+                return {
+                    avgComplexity: 3.2,
+                    sideEffectsCount: 2,
+                    totalFunctions: 45,
+                    dependenciesCount: 128,
+                    understandingScore: 85,
+                    highComplexityCount: 3,
+                    complexityTrend: 'stable',
+                    sideEffectsTrend: 'improving',
+                    dependenciesTrend: 'stable',
+                    understandingTrend: 'improving'
+                };
+            }
+
+            renderDashboard() {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('dashboard').style.display = 'block';
+
+                this.updateMetrics();
+                this.updateTrends();
+                this.generateInsights();
+            }
+
+            updateMetrics() {
+                const data = this.data;
+
+                // Update complexity
+                const complexityEl = document.getElementById('avg-complexity');
+                complexityEl.textContent = data.avgComplexity?.toFixed(1) || 'N/A';
+                complexityEl.className = this.getComplexityClass(data.avgComplexity);
+
+                // Update side effects
+                const sideEffectsEl = document.getElementById('side-effects-count');
+                sideEffectsEl.textContent = data.sideEffectsCount || 0;
+                sideEffectsEl.className = this.getSideEffectsClass(data.sideEffectsCount);
+
+                // Update dependencies
+                const dependenciesEl = document.getElementById('dependencies-count');
+                dependenciesEl.textContent = data.dependenciesCount || 0;
+
+                // Update understanding score
+                const understandingEl = document.getElementById('understanding-score');
+                understandingEl.textContent = data.understandingScore || 0;
+                understandingEl.className = this.getUnderstandingClass(data.understandingScore);
+            }
+
+            updateTrends() {
+                const data = this.data;
+
+                // Update trend indicators
+                this.updateTrend('complexity', data.complexityTrend);
+                this.updateTrend('side-effects', data.sideEffectsTrend);
+                this.updateTrend('dependencies', data.dependenciesTrend);
+                this.updateTrend('understanding', data.understandingTrend);
+            }
+
+            updateTrend(type, trend) {
+                const iconEl = document.getElementById(`${type}-trend-icon`);
+                const textEl = document.getElementById(`${type}-trend-text`);
+
+                let icon, text, className;
+                switch (trend) {
+                    case 'improving':
+                        icon = '📈';
+                        text = 'Improving';
+                        className = 'trend-up';
+                        break;
+                    case 'declining':
+                        icon = '📉';
+                        text = 'Declining';
+                        className = 'trend-down';
+                        break;
+                    case 'stable':
+                    default:
+                        icon = '➡️';
+                        text = 'Stable';
+                        className = 'trend-stable';
+                        break;
+                }
+
+                iconEl.textContent = icon;
+                textEl.textContent = text;
+                textEl.className = className;
+            }
+
+            generateInsights() {
+                const insights = [];
+                const data = this.data;
+
+                // Complexity insights
+                if (data.avgComplexity > 5) {
+                    insights.push({
+                        icon: '⚠️',
+                        title: 'High Complexity Detected',
+                        description: `Average complexity is ${data.avgComplexity.toFixed(1)}, which is above the recommended threshold of 5. Consider refactoring complex functions.`
+                    });
+                } else if (data.avgComplexity < 3) {
+                    insights.push({
+                        icon: '✅',
+                        title: 'Good Complexity Management',
+                        description: `Average complexity is ${data.avgComplexity.toFixed(1)}, which is within the recommended range. Keep up the good work!`
+                    });
+                }
+
+                // Side effects insights
+                if (data.sideEffectsCount > 5) {
+                    insights.push({
+                        icon: '⚠️',
+                        title: 'Many Side Effects',
+                        description: `${data.sideEffectsCount} functions have side effects. Ensure they are properly documented and tested.`
+                    });
+                } else if (data.sideEffectsCount === 0) {
+                    insights.push({
+                        icon: '✅',
+                        title: 'Clean Functions',
+                        description: 'No functions with side effects detected. This makes the code more predictable and testable.'
+                    });
+                }
+
+                // Understanding score insights
+                if (data.understandingScore > 80) {
+                    insights.push({
+                        icon: '🎉',
+                        title: 'Excellent Understanding Score',
+                        description: `Your code has an understanding score of ${data.understandingScore}/100. This indicates high code quality and maintainability.`
+                    });
+                } else if (data.understandingScore < 60) {
+                    insights.push({
+                        icon: '🔧',
+                        title: 'Understanding Score Needs Improvement',
+                        description: `Your understanding score is ${data.understandingScore}/100. Consider reducing complexity and side effects.`
+                    });
+                }
+
+                // Render insights
+                const insightsList = document.getElementById('insights-list');
+                insightsList.innerHTML = insights.map(insight => `
+                    <div class="insight-item">
+                        <div class="insight-icon">${insight.icon}</div>
+                        <div class="insight-content">
+                            <h4>${insight.title}</h4>
+                            <p>${insight.description}</p>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            getComplexityClass(complexity) {
+                if (complexity > 5) return 'metric complexity-high';
+                if (complexity > 3) return 'metric complexity-medium';
+                return 'metric complexity-good';
+            }
+
+            getSideEffectsClass(count) {
+                if (count > 5) return 'metric side-effects-danger';
+                if (count > 0) return 'metric side-effects-warning';
+                return 'metric side-effects-good';
+            }
+
+            getUnderstandingClass(score) {
+                if (score >= 80) return 'metric understanding-excellent';
+                if (score >= 60) return 'metric understanding-good';
+                if (score >= 40) return 'metric understanding-fair';
+                return 'metric understanding-poor';
+            }
+
+            setupEventListeners() {
+                document.getElementById('refresh-btn').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    this.refresh();
+                });
+
+                document.getElementById('export-btn').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    this.exportReport();
+                });
+
+                document.getElementById('tour-btn').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    this.openTour();
+                });
+            }
+
+            refresh() {
+                document.getElementById('loading').style.display = 'flex';
+                document.getElementById('dashboard').style.display = 'none';
+                this.loadData();
+            }
+
+            exportReport() {
+                const report = this.generateReport();
+                const blob = new Blob([report], { type: 'text/markdown' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'context-debt-report.md';
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+
+            generateReport() {
+                const data = this.data;
+                return `# Context Debt Report
+
+## Summary
+- **Average Complexity**: ${data.avgComplexity?.toFixed(1) || 'N/A'}
+- **Side Effects**: ${data.sideEffectsCount || 0} functions
+- **Total Functions**: ${data.totalFunctions || 0}
+- **Understanding Score**: ${data.understandingScore || 0}/100
+
+## Recommendations
+${this.generateRecommendations()}
+
+*Generated by Understand-First Context Debt Dashboard*
+`;
+            }
+
+            generateRecommendations() {
+                const recommendations = [];
+                const data = this.data;
+
+                if (data.avgComplexity > 5) {
+                    recommendations.push('- Refactor high-complexity functions to improve maintainability');
+                }
+
+                if (data.sideEffectsCount > 0) {
+                    recommendations.push('- Document and test functions with side effects');
+                }
+
+                if (data.understandingScore < 60) {
+                    recommendations.push('- Focus on reducing complexity and improving code clarity');
+                }
+
+                return recommendations.length > 0 ? recommendations.join('\n') : '- No specific recommendations at this time';
+            }
+
+            openTour() {
+                // Try to open the understanding tour
+                const tourUrls = [
+                    'tours/pr-tour.md',
+                    'tours/local.md',
+                    'tours/example.md'
+                ];
+
+                for (const url of tourUrls) {
+                    try {
+                        window.open(url, '_blank');
+                        return;
+                    } catch (e) {
+                        // Continue to next URL
+                    }
+                }
+
+                alert('Understanding tour not found. Please generate one first using the CLI or VS Code extension.');
+            }
+
+            showError(message) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error-message').textContent = message;
+                document.getElementById('error').style.display = 'block';
+            }
+        }
+
+        // Lens management functionality
+        function setupLensActions() {
+            // Create New Lens
+            document.getElementById('create-lens-btn').addEventListener('click', function() {
+                createNewLens();
+            });
+
+            // Analyze Hot Paths
+            document.getElementById('analyze-hot-paths-btn').addEventListener('click', function() {
+                analyzeHotPaths();
+            });
+
+            // Review Side Effects
+            document.getElementById('review-side-effects-btn').addEventListener('click', function() {
+                reviewSideEffects();
+            });
+
+            // Open Code Map
+            document.getElementById('map-btn').addEventListener('click', function() {
+                openCodeMap();
+            });
+        }
+
+        function createNewLens() {
+            // Simulate lens creation process
+            showNotification('Creating new understanding lens...', 'info');
+            
+            // In a real implementation, this would call the backend API
+            setTimeout(() => {
+                const lensData = {
+                    name: 'Custom Lens',
+                    description: 'A focused view of your codebase',
+                    functions: ['function1', 'function2', 'function3'],
+                    created: new Date().toISOString()
+                };
+                
+                showNotification('Lens created successfully!', 'success');
+                console.log('New lens created:', lensData);
+            }, 1500);
+        }
+
+        function analyzeHotPaths() {
+            showNotification('Analyzing hot paths...', 'info');
+            
+            // Simulate hot path analysis
+            setTimeout(() => {
+                const hotPaths = [
+                    { function: 'processOrder', calls: 1250, complexity: 8 },
+                    { function: 'validateUser', calls: 980, complexity: 3 },
+                    { function: 'calculateTotal', calls: 750, complexity: 5 }
+                ];
+                
+                showHotPathResults(hotPaths);
+            }, 2000);
+        }
+
+        function reviewSideEffects() {
+            showNotification('Reviewing side effects...', 'info');
+            
+            // Simulate side effect analysis
+            setTimeout(() => {
+                const sideEffects = [
+                    { function: 'updateDatabase', effects: ['database_write', 'cache_invalidate'] },
+                    { function: 'sendEmail', effects: ['email_send', 'log_event'] },
+                    { function: 'processPayment', effects: ['payment_charge', 'audit_log'] }
+                ];
+                
+                showSideEffectResults(sideEffects);
+            }, 1500);
+        }
+
+        function openCodeMap() {
+            // Open the main code map in a new tab
+            window.open('index.html', '_blank');
+        }
+
+        function showHotPathResults(hotPaths) {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>🔥 Hot Path Analysis Results</h3>
+                        <span class="close">&times;</span>
+                    </div>
+                    <div class="modal-body">
+                        <p>Functions with the highest call frequency:</p>
+                        <div class="hot-path-list">
+                            ${hotPaths.map(path => `
+                                <div class="hot-path-item">
+                                    <div class="function-name">${path.function}</div>
+                                    <div class="function-stats">
+                                        <span class="calls">${path.calls} calls</span>
+                                        <span class="complexity">Complexity: ${path.complexity}</span>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-primary" onclick="this.closest('.modal').remove()">Close</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Close modal when clicking X
+            modal.querySelector('.close').addEventListener('click', () => {
+                modal.remove();
+            });
+            
+            // Close modal when clicking outside
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            });
+        }
+
+        function showSideEffectResults(sideEffects) {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>⚠️ Side Effects Review</h3>
+                        <span class="close">&times;</span>
+                    </div>
+                    <div class="modal-body">
+                        <p>Functions with side effects that need attention:</p>
+                        <div class="side-effect-list">
+                            ${sideEffects.map(effect => `
+                                <div class="side-effect-item">
+                                    <div class="function-name">${effect.function}</div>
+                                    <div class="effects">
+                                        ${effect.effects.map(e => `<span class="effect-tag">${e}</span>`).join('')}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-primary" onclick="this.closest('.modal').remove()">Close</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Close modal when clicking X
+            modal.querySelector('.close').addEventListener('click', () => {
+                modal.remove();
+            });
+            
+            // Close modal when clicking outside
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            });
+        }
+
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        // Initialize dashboard when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new ContextDebtDashboard();
+            setupLensActions();
+        });
+    </script>
+</body>
+</html>

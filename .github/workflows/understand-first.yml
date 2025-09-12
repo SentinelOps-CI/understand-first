@@ -1,0 +1,415 @@
+name: Understand-First Analysis
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main, master]
+
+jobs:
+  understand-analysis:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch full history for better analysis
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Install Understand-First
+        run: |
+          cd cli
+          pip install -e .
+
+      - name: Scan Repository
+        id: scan
+        run: |
+          echo "🔍 Scanning repository for code understanding..."
+          u scan . -o maps/repo.json --verbose
+          echo "functions_count=$(jq '.functions | length' maps/repo.json)" >> $GITHUB_OUTPUT
+          echo "modules_count=$(jq -r '.functions | to_entries | map(.value.file) | unique | length' maps/repo.json)" >> $GITHUB_OUTPUT
+
+      - name: Generate Understanding Lens
+        id: lens
+        run: |
+          echo "🎯 Creating understanding lens for changed files..."
+
+          # Get changed files from PR
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E '\.(py|ts|js|go|rs|java)$' | head -10)
+          else
+            CHANGED_FILES=$(git diff --name-only HEAD~1...HEAD | grep -E '\.(py|ts|js|go|rs|java)$' | head -10)
+          fi
+
+          echo "Changed files: $CHANGED_FILES"
+
+          if [ -n "$CHANGED_FILES" ]; then
+            # Create lens from changed files
+            u lens from-seeds --map maps/repo.json --seed $CHANGED_FILES -o maps/lens.json --verbose
+            echo "lens_created=true" >> $GITHUB_OUTPUT
+            echo "lens_functions=$(jq '.functions | length' maps/lens.json)" >> $GITHUB_OUTPUT
+          else
+            echo "lens_created=false" >> $GITHUB_OUTPUT
+            echo "lens_functions=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate Understanding Tour
+        if: steps.lens.outputs.lens_created == 'true'
+        run: |
+          echo "📚 Generating understanding tour..."
+          u tour maps/lens.json -o tours/pr-tour.md
+
+      - name: Generate Context Debt Dashboard
+        if: steps.lens.outputs.lens_created == 'true'
+        run: |
+          echo "📊 Generating context debt dashboard..."
+          u ci --scan . --output ci-artifacts --report
+
+          # Generate dashboard HTML
+          cat > context-debt-dashboard.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>Context Debt Dashboard</title>
+              <style>
+                  body { font-family: Arial, sans-serif; margin: 20px; }
+                  .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+                  .card { border: 1px solid #ddd; border-radius: 8px; padding: 20px; background: #f9f9f9; }
+                  .card h3 { margin-top: 0; color: #333; }
+                  .metric { font-size: 24px; font-weight: bold; color: #007acc; }
+                  .trend { font-size: 14px; color: #666; }
+                  .warning { color: #ff6b35; }
+                  .good { color: #28a745; }
+              </style>
+          </head>
+          <body>
+              <h1>🧠 Context Debt Dashboard</h1>
+              <div class="dashboard">
+                  <div class="card">
+                      <h3>📊 Code Complexity</h3>
+                      <div class="metric" id="avg-complexity">Loading...</div>
+                      <div class="trend">Average function complexity</div>
+                  </div>
+                  <div class="card">
+                      <h3>⚠️ Side Effects</h3>
+                      <div class="metric" id="side-effects">Loading...</div>
+                      <div class="trend">Functions with side effects</div>
+                  </div>
+                  <div class="card">
+                      <h3>🔗 Dependencies</h3>
+                      <div class="metric" id="dependencies">Loading...</div>
+                      <div class="trend">Function dependencies</div>
+                  </div>
+                  <div class="card">
+                      <h3>📈 Understanding Score</h3>
+                      <div class="metric" id="understanding-score">Loading...</div>
+                      <div class="trend">Overall code understandability</div>
+                  </div>
+              </div>
+              <script>
+                  // Load analysis data and populate dashboard
+                  fetch('ci-artifacts/ci-report.md')
+                      .then(response => response.text())
+                      .then(data => {
+                          // Parse metrics from report
+                          const complexityMatch = data.match(/Average Complexity.*?(\d+\.?\d*)/);
+                          const sideEffectsMatch = data.match(/Functions with Side Effects.*?(\d+)/);
+                          
+                          if (complexityMatch) {
+                              document.getElementById('avg-complexity').textContent = complexityMatch[1];
+                              document.getElementById('avg-complexity').className = 
+                                  parseFloat(complexityMatch[1]) > 5 ? 'metric warning' : 'metric good';
+                          }
+                          
+                          if (sideEffectsMatch) {
+                              document.getElementById('side-effects').textContent = sideEffectsMatch[1];
+                              document.getElementById('side-effects').className = 
+                                  parseInt(sideEffectsMatch[1]) > 0 ? 'metric warning' : 'metric good';
+                          }
+                      });
+              </script>
+          </body>
+          </html>
+          EOF
+
+      - name: Analyze Code Changes
+        id: diff
+        if: steps.lens.outputs.lens_created == 'true'
+        run: |
+          echo "📊 Analyzing code changes..."
+
+          # Create baseline lens from previous commit
+          git stash
+          git checkout HEAD~1
+          u scan . -o maps/repo_old.json --verbose || echo "No previous commit to compare"
+
+          if [ -f "maps/repo_old.json" ]; then
+            u diff --old maps/repo_old.json --new maps/repo.json -o maps/delta.json --json
+            echo "changes_detected=true" >> $GITHUB_OUTPUT
+            echo "added_functions=$(jq '.summary.added' maps/delta.json)" >> $GITHUB_OUTPUT
+            echo "removed_functions=$(jq '.summary.removed' maps/delta.json)" >> $GITHUB_OUTPUT
+            echo "modified_functions=$(jq '.summary.modified' maps/delta.json)" >> $GITHUB_OUTPUT
+          else
+            echo "changes_detected=false" >> $GITHUB_OUTPUT
+            echo "added_functions=0" >> $GITHUB_OUTPUT
+            echo "removed_functions=0" >> $GITHUB_OUTPUT
+            echo "modified_functions=0" >> $GITHUB_OUTPUT
+          fi
+
+          # Restore current state
+          git checkout ${{ github.sha }}
+          git stash pop
+
+      - name: Upload Analysis Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: understand-first-analysis
+          path: |
+            maps/
+            tours/
+            context-debt-dashboard.html
+            ci-artifacts/
+          retention-days: 30
+
+      - name: Upload Code Map Delta
+        if: steps.diff.outputs.changes_detected == 'true'
+        uses: actions/upload-artifact@v3
+        with:
+          name: code-map-delta
+          path: maps/delta.svg
+          retention-days: 30
+
+      - name: Upload Understanding Tour
+        if: steps.lens.outputs.lens_created == 'true'
+        uses: actions/upload-artifact@v3
+        with:
+          name: understanding-tour
+          path: tours/pr-tour.md
+          retention-days: 30
+
+      - name: Upload Context Debt Dashboard
+        if: steps.lens.outputs.lens_created == 'true'
+        uses: actions/upload-artifact@v3
+        with:
+          name: context-debt-dashboard
+          path: context-debt-dashboard.html
+          retention-days: 30
+
+      - name: Generate Enhanced PR Comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            // Read analysis results
+            let comment = '## 📊 Understand-First Analysis\n\n';
+
+            // Add scan results with enhanced formatting
+            comment += `### 🔍 Repository Scan\n`;
+            comment += `| Metric | Value |\n`;
+            comment += `|--------|-------|\n`;
+            comment += `| **Functions analyzed** | ${process.env.FUNCTIONS_COUNT || 0} |\n`;
+            comment += `| **Modules processed** | ${process.env.MODULES_COUNT || 0} |\n`;
+            comment += `| **Analysis time** | ${new Date().toISOString()} |\n\n`;
+
+            // Add lens results if available
+            if (process.env.LENS_CREATED === 'true') {
+              comment += `### 🎯 Understanding Lens\n`;
+              comment += `| Metric | Value |\n`;
+              comment += `|--------|-------|\n`;
+              comment += `| **Functions in lens** | ${process.env.LENS_FUNCTIONS || 0} |\n`;
+              comment += `| **Analysis focus** | Changed files in this PR |\n`;
+              comment += `| **Coverage** | ${Math.round((process.env.LENS_FUNCTIONS || 0) / (process.env.FUNCTIONS_COUNT || 1) * 100)}% of total functions |\n\n`;
+            }
+
+            // Add enhanced diff results if available
+            if (process.env.CHANGES_DETECTED === 'true') {
+              comment += `### 📈 Code Changes Analysis\n`;
+              comment += `| Change Type | Count | Impact |\n`;
+              comment += `|-------------|-------|--------|\n`;
+              comment += `| **Functions added** | ${process.env.ADDED_FUNCTIONS || 0} | ${(process.env.ADDED_FUNCTIONS || 0) > 0 ? '🟡 New functionality' : '✅ No additions'} |\n`;
+              comment += `| **Functions removed** | ${process.env.REMOVED_FUNCTIONS || 0} | ${(process.env.REMOVED_FUNCTIONS || 0) > 0 ? '🔴 Potential breaking change' : '✅ No removals'} |\n`;
+              comment += `| **Functions modified** | ${process.env.MODIFIED_FUNCTIONS || 0} | ${(process.env.MODIFIED_FUNCTIONS || 0) > 0 ? '🟡 Behavior changes' : '✅ No modifications'} |\n`;
+              comment += `| **Total changes** | ${(parseInt(process.env.ADDED_FUNCTIONS || 0) + parseInt(process.env.REMOVED_FUNCTIONS || 0) + parseInt(process.env.MODIFIED_FUNCTIONS || 0))} | ${(parseInt(process.env.ADDED_FUNCTIONS || 0) + parseInt(process.env.REMOVED_FUNCTIONS || 0) + parseInt(process.env.MODIFIED_FUNCTIONS || 0)) > 0 ? '📊 Changes detected' : '✅ No changes'} |\n\n`;
+            }
+
+            // Add enhanced context debt insights
+            comment += `### 🧠 Context Debt Insights\n`;
+            comment += `| Metric | Value | Status |\n`;
+            comment += `|--------|-------|--------|\n`;
+            comment += `| **Understanding score** | ${process.env.UNDERSTANDING_SCORE || 'N/A'}/100 | ${(process.env.UNDERSTANDING_SCORE || 0) >= 80 ? '✅ Good' : (process.env.UNDERSTANDING_SCORE || 0) >= 60 ? '🟡 Fair' : '🔴 Needs improvement'} |\n`;
+            comment += `| **Complexity trend** | ${process.env.COMPLEXITY_TREND || 'Stable'} | ${process.env.COMPLEXITY_TREND === 'Low' ? '✅ Low' : process.env.COMPLEXITY_TREND === 'Medium' ? '🟡 Medium' : '🔴 High'} |\n`;
+            comment += `| **Side effects** | ${process.env.SIDE_EFFECTS_COUNT || 0} functions | ${(process.env.SIDE_EFFECTS_COUNT || 0) === 0 ? '✅ None' : '🟡 Present'} |\n`;
+            comment += `| **High complexity** | ${process.env.HIGH_COMPLEXITY_COUNT || 0} functions | ${(process.env.HIGH_COMPLEXITY_COUNT || 0) === 0 ? '✅ None' : '🔴 Present'} |\n\n`;
+
+            // Add mini-map if available
+            if (fs.existsSync('maps/delta.svg')) {
+              comment += `### 🗺️ Code Map Delta\n`;
+              comment += `A visual representation of the changes in your codebase:\n\n`;
+              comment += `![Code Map Delta](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/understand-first-analysis/maps/delta.svg)\n\n`;
+            }
+
+            // Add understanding tour if available
+            if (fs.existsSync('tours/pr-tour.md')) {
+              comment += `### 📚 Understanding Tour\n`;
+              comment += `An interactive tour has been generated to help reviewers understand the changes:\n\n`;
+              comment += `**📖 [Download Understanding Tour](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/understand-first-analysis/tours/pr-tour.md)**\n\n`;
+            }
+
+            // Add context debt dashboard if available
+            if (fs.existsSync('context-debt-dashboard.html')) {
+              comment += `### 📊 Context Debt Dashboard\n`;
+              comment += `A visual dashboard showing code quality trends and understanding metrics:\n\n`;
+              comment += `**📈 [View Context Debt Dashboard](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/understand-first-analysis/context-debt-dashboard.html)**\n\n`;
+            }
+
+            // Add enhanced reviewer checklist
+            comment += `### ✅ Reviewer Checklist\n`;
+            comment += `- [ ] I have reviewed the understanding analysis above\n`;
+            comment += `- [ ] I understand the complexity and side effects of changes\n`;
+            comment += `- [ ] I have verified the changes align with the understanding tour\n`;
+            comment += `- [ ] I confirm this change maintains code quality standards\n`;
+            comment += `- [ ] I have checked for potential breaking changes in dependencies\n`;
+            comment += `- [ ] I have reviewed the code map delta for visual changes\n`;
+            comment += `- [ ] I have checked the context debt dashboard for quality trends\n\n`;
+
+            // Add enhanced understanding requirements
+            comment += `### 📋 Understanding Requirements\n`;
+            if (process.env.HIGH_COMPLEXITY_COUNT > 0) {
+              comment += `- [ ] **Documentation needed**: ${process.env.HIGH_COMPLEXITY_COUNT} high complexity functions detected\n`;
+            }
+            if (process.env.SIDE_EFFECTS_COUNT > 0) {
+              comment += `- [ ] **Tests needed**: ${process.env.SIDE_EFFECTS_COUNT} functions with side effects should have comprehensive tests\n`;
+            }
+            if (process.env.REMOVED_FUNCTIONS > 0) {
+              comment += `- [ ] **Breaking change review**: ${process.env.REMOVED_FUNCTIONS} functions removed or significantly modified\n`;
+            }
+            if (process.env.UNDERSTANDING_SCORE < 60) {
+              comment += `- [ ] **Code quality improvement**: Understanding score is below 60, consider refactoring\n`;
+            }
+            comment += `\n`;
+
+            // Add artifacts section
+            comment += `### 📦 Analysis Artifacts\n`;
+            comment += `The following artifacts have been generated and are available for download:\n\n`;
+            comment += `- **Repository Map**: Complete analysis of all functions\n`;
+            comment += `- **Understanding Lens**: Focused analysis of changed functions\n`;
+            comment += `- **Code Map Delta**: Visual representation of changes\n`;
+            comment += `- **Understanding Tour**: Step-by-step guide through changes\n`;
+            comment += `- **Context Debt Dashboard**: Quality metrics and trends\n\n`;
+
+            comment += `**🔗 [Download All Artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/understand-first-analysis)**\n\n`;
+
+            comment += `---\n`;
+            comment += `*This analysis was generated by [Understand-First](https://github.com/SentinelOps-CI/understand-first) to help achieve TTU ≤ 10 minutes and TTFSC ≤ 1 day.*`;
+
+            // Post comment
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+        env:
+          FUNCTIONS_COUNT: ${{ steps.scan.outputs.functions_count }}
+          MODULES_COUNT: ${{ steps.scan.outputs.modules_count }}
+          LENS_CREATED: ${{ steps.lens.outputs.lens_created }}
+          LENS_FUNCTIONS: ${{ steps.lens.outputs.lens_functions }}
+          CHANGES_DETECTED: ${{ steps.diff.outputs.changes_detected }}
+          ADDED_FUNCTIONS: ${{ steps.diff.outputs.added_functions }}
+          REMOVED_FUNCTIONS: ${{ steps.diff.outputs.removed_functions }}
+          MODIFIED_FUNCTIONS: ${{ steps.diff.outputs.modified_functions }}
+          HIGH_COMPLEXITY_COUNT: ${{ steps.quality.outputs.high_complexity_count }}
+          SIDE_EFFECTS_COUNT: ${{ steps.quality.outputs.side_effects_count }}
+          UNDERSTANDING_SCORE: ${{ steps.quality.outputs.understanding_score }}
+          COMPLEXITY_TREND: ${{ steps.quality.outputs.complexity_trend }}
+
+      - name: Analyze Code Quality
+        id: quality
+        if: steps.lens.outputs.lens_created == 'true'
+        run: |
+          echo "🔍 Analyzing code quality and understanding metrics..."
+
+          # Calculate quality metrics
+          HIGH_COMPLEXITY=$(jq '[.functions | to_entries[] | select(.value.complexity > 10)] | length' maps/lens.json)
+          SIDE_EFFECTS=$(jq '[.functions | to_entries[] | select(.value.side_effects | length > 0)] | length' maps/lens.json)
+
+          # Calculate average complexity
+          AVG_COMPLEXITY=$(jq '[.functions | to_entries[] | .value.complexity] | add / length' maps/lens.json)
+
+          # Calculate understanding score (0-100)
+          TOTAL_FUNCTIONS=$(jq '.functions | length' maps/lens.json)
+          COMPLEXITY_PENALTY=$(echo "$HIGH_COMPLEXITY * 10" | bc)
+          SIDE_EFFECT_PENALTY=$(echo "$SIDE_EFFECTS * 5" | bc)
+          UNDERSTANDING_SCORE=$(echo "100 - $COMPLEXITY_PENALTY - $SIDE_EFFECT_PENALTY" | bc)
+
+          # Determine complexity trend
+          if (( $(echo "$AVG_COMPLEXITY > 5" | bc -l) )); then
+            COMPLEXITY_TREND="High"
+          elif (( $(echo "$AVG_COMPLEXITY > 3" | bc -l) )); then
+            COMPLEXITY_TREND="Medium"
+          else
+            COMPLEXITY_TREND="Low"
+          fi
+
+          echo "high_complexity_count=$HIGH_COMPLEXITY" >> $GITHUB_OUTPUT
+          echo "side_effects_count=$SIDE_EFFECTS" >> $GITHUB_OUTPUT
+          echo "understanding_score=$UNDERSTANDING_SCORE" >> $GITHUB_OUTPUT
+          echo "complexity_trend=$COMPLEXITY_TREND" >> $GITHUB_OUTPUT
+          echo "avg_complexity=$AVG_COMPLEXITY" >> $GITHUB_OUTPUT
+
+          echo "📊 Quality Metrics:"
+          echo "  - High complexity functions: $HIGH_COMPLEXITY"
+          echo "  - Functions with side effects: $SIDE_EFFECTS"
+          echo "  - Average complexity: $AVG_COMPLEXITY"
+          echo "  - Understanding score: $UNDERSTANDING_SCORE/100"
+          echo "  - Complexity trend: $COMPLEXITY_TREND"
+
+      - name: Check Understanding Requirements
+        if: steps.lens.outputs.lens_created == 'true'
+        run: |
+          echo "🔍 Checking understanding requirements..."
+
+          # Check if tour was generated
+          if [ ! -f "tours/pr-tour.md" ]; then
+            echo "❌ Understanding tour not generated"
+            exit 1
+          fi
+
+          # Check if analysis found high complexity functions
+          HIGH_COMPLEXITY=$(jq '[.functions | to_entries[] | select(.value.complexity > 10)] | length' maps/lens.json)
+          if [ "$HIGH_COMPLEXITY" -gt 0 ]; then
+            echo "⚠️ Warning: $HIGH_COMPLEXITY high complexity functions detected"
+            echo "Consider adding documentation or breaking down complex functions"
+          fi
+
+          # Check for side effects
+          SIDE_EFFECTS=$(jq '[.functions | to_entries[] | select(.value.side_effects | length > 0)] | length' maps/lens.json)
+          if [ "$SIDE_EFFECTS" -gt 0 ]; then
+            echo "⚠️ Warning: $SIDE_EFFECTS functions with side effects detected"
+            echo "Ensure side effects are properly documented and tested"
+          fi
+
+          echo "✅ Understanding requirements check passed"
+
+      - name: Track TTU Metrics
+        run: |
+          echo "📊 Tracking TTU metrics..."
+
+          # Record analysis completion time
+          ANALYSIS_TIME=$(date +%s)
+          echo "analysis_completed_at=$ANALYSIS_TIME" >> $GITHUB_OUTPUT
+
+          # Record metrics for dashboard
+          echo "## Analysis Metrics" >> $GITHUB_STEP_SUMMARY
+          echo "- Functions analyzed: ${{ steps.scan.outputs.functions_count }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Modules processed: ${{ steps.scan.outputs.modules_count }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Understanding lens created: ${{ steps.lens.outputs.lens_created }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Changes detected: ${{ steps.diff.outputs.changes_detected }}" >> $GITHUB_STEP_SUMMARY

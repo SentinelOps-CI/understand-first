@@ -517,4 +517,4 @@ Install the Understand-First VS Code extension for:
 
 - [Documentation](https://github.com/your-org/understand-first#readme)
 - [Examples](https://github.com/your-org/understand-first/tree/main/examples)
-- [Web Demo](https://your-org.github.io/understand-first/demo)
+- [Web Playground](https://your-org.github.io/understand-first/demo)

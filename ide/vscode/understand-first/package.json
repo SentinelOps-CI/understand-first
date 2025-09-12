@@ -1,16 +1,74 @@
 {
   "name": "understand-first",
   "displayName": "Understand-First (TTU)",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "engines": { "vscode": "^1.90.0" },
-  "activationEvents": ["onStartupFinished", "onCommand:understandFirst.showTour", "onCommand:understandFirst.explainErrorPropagation"],
+  "activationEvents": [
+    "onStartupFinished", 
+    "onCommand:understandFirst.showTour", 
+    "onCommand:understandFirst.explainErrorPropagation",
+    "onLanguage:python",
+    "onFileSystem:maps"
+  ],
   "main": "./extension.js",
   "contributes": {
     "commands": [
       { "command": "understandFirst.generatePropertyTest", "title": "Understand-First: Generate Property Test" },
       { "command": "understandFirst.openGlossary", "title": "Understand-First: Open Glossary" },
       { "command": "understandFirst.showTour", "title": "Understand-First: Show Tour" },
-      { "command": "understandFirst.explainErrorPropagation", "title": "Understand-First: Explain Error Propagation" }
-    ]
+      { "command": "understandFirst.explainErrorPropagation", "title": "Understand-First: Explain Error Propagation" },
+      { "command": "understandFirst.openInMap", "title": "Open in Map" },
+      { "command": "understandFirst.addToLens", "title": "Add to Lens" },
+      { "command": "understandFirst.scanRepo", "title": "Understand-First: Scan Repository" },
+      { "command": "understandFirst.generateTour", "title": "Understand-First: Generate Tour from Selection" },
+      { "command": "understandFirst.openPRSnippet", "title": "Understand-First: Generate PR Snippet" },
+      { "command": "understandFirst.toggleOverlay", "title": "Toggle Understanding Overlay" },
+      { "command": "understandFirst.openPanel", "title": "Understand-First: Open Analysis Panel" },
+      { "command": "understandFirst.refreshPanel", "title": "Understand-First: Refresh Analysis Panel" }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "when": "resourceExtname == .py",
+          "command": "understandFirst.generateTour",
+          "group": "understandFirst"
+        },
+        {
+          "when": "resourceExtname == .py",
+          "command": "understandFirst.openPRSnippet",
+          "group": "understandFirst"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "understandFirst.scanRepo",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "understandFirst.openPanel",
+          "when": "workspaceFolderCount > 0"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Understand-First",
+      "properties": {
+        "understandFirst.enableOverlay": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable understanding overlay decorations"
+        },
+        "understandFirst.showCodeLens": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show CodeLens for function analysis"
+        },
+        "understandFirst.autoRefresh": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically refresh decorations when maps change"
+        }
+      }
+    }
   }
 }

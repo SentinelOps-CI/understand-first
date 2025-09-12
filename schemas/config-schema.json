@@ -1,0 +1,540 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://understand-first.dev/schemas/config-schema.json",
+  "title": "Understand-First Configuration",
+  "description": "Schema for Understand-First configuration files",
+  "type": "object",
+  "required": ["version"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Configuration schema version",
+      "enum": ["1.0"],
+      "default": "1.0"
+    },
+    "repository": {
+      "type": "object",
+      "description": "Repository-specific configuration",
+      "properties": {
+        "name": {"type": "string"},
+        "description": {"type": "string"},
+        "main_branch": {"type": "string", "default": "main"},
+        "ignore_patterns": {
+          "type": "array",
+          "items": {"type": "string"},
+          "default": [
+            "**/node_modules/**",
+            "**/__pycache__/**",
+            "**/.git/**",
+            "**/venv/**",
+            "**/env/**"
+          ]
+        },
+        "include_patterns": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "exclude_files": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "languages": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["python", "javascript", "typescript", "go", "rust", "java", "csharp", "cpp", "c"]
+          }
+        }
+      }
+    },
+    "analysis": {
+      "type": "object",
+      "description": "Analysis configuration",
+      "properties": {
+        "complexity": {
+          "type": "object",
+          "properties": {
+            "enabled": {"type": "boolean", "default": true},
+            "threshold": {"type": "integer", "default": 10},
+            "metrics": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["cyclomatic", "cognitive", "halstead", "maintainability"]
+              },
+              "default": ["cyclomatic", "cognitive"]
+            },
+            "ignore_patterns": {
+              "type": "array",
+              "items": {"type": "string"}
+            }
+          }
+        },
+        "side_effects": {
+          "type": "object",
+          "properties": {
+            "enabled": {"type": "boolean", "default": true},
+            "detect_io": {"type": "boolean", "default": true},
+            "detect_network": {"type": "boolean", "default": true},
+            "detect_file_system": {"type": "boolean", "default": true},
+            "detect_database": {"type": "boolean", "default": true},
+            "detect_external_calls": {"type": "boolean", "default": true},
+            "ignore_patterns": {
+              "type": "array",
+              "items": {"type": "string"}
+            }
+          }
+        },
+        "documentation": {
+          "type": "object",
+          "properties": {
+            "enabled": {"type": "boolean", "default": true},
+            "check_docstrings": {"type": "boolean", "default": true},
+            "check_comments": {"type": "boolean", "default": true},
+            "check_readme": {"type": "boolean", "default": true},
+            "min_docstring_length": {"type": "integer", "default": 20},
+            "require_type_hints": {"type": "boolean", "default": false}
+          }
+        },
+        "performance": {
+          "type": "object",
+          "properties": {
+            "enabled": {"type": "boolean", "default": true},
+            "profile_execution": {"type": "boolean", "default": false},
+            "memory_tracking": {"type": "boolean", "default": false},
+            "cpu_tracking": {"type": "boolean", "default": false},
+            "hot_path_detection": {"type": "boolean", "default": true}
+          }
+        }
+      }
+    },
+    "visualization": {
+      "type": "object",
+      "description": "Visualization configuration",
+      "properties": {
+        "default_layout": {
+          "type": "string",
+          "enum": ["hierarchical", "force", "circular", "grid"],
+          "default": "hierarchical"
+        },
+        "node_sizing": {
+          "type": "string",
+          "enum": ["uniform", "complexity", "calls", "side_effects"],
+          "default": "complexity"
+        },
+        "node_coloring": {
+          "type": "string",
+          "enum": ["uniform", "complexity", "side_effects", "module", "language"],
+          "default": "side_effects"
+        },
+        "edge_style": {
+          "type": "object",
+          "properties": {
+            "show_arrows": {"type": "boolean", "default": true},
+            "thickness_by": {
+              "type": "string",
+              "enum": ["uniform", "call_frequency", "importance"],
+              "default": "call_frequency"
+            },
+            "color_by": {
+              "type": "string",
+              "enum": ["uniform", "call_type", "side_effects"],
+              "default": "call_type"
+            }
+          }
+        },
+        "clustering": {
+          "type": "object",
+          "properties": {
+            "enabled": {"type": "boolean", "default": true},
+            "method": {
+              "type": "string",
+              "enum": ["module", "complexity", "side_effects", "language"],
+              "default": "module"
+            },
+            "min_cluster_size": {"type": "integer", "default": 3},
+            "max_clusters": {"type": "integer", "default": 20}
+          }
+        },
+        "interactions": {
+          "type": "object",
+          "properties": {
+            "zoom_enabled": {"type": "boolean", "default": true},
+            "pan_enabled": {"type": "boolean", "default": true},
+            "selection_enabled": {"type": "boolean", "default": true},
+            "hover_cards": {"type": "boolean", "default": true},
+            "context_menu": {"type": "boolean", "default": true},
+            "keyboard_shortcuts": {"type": "boolean", "default": true}
+          }
+        },
+        "export": {
+          "type": "object",
+          "properties": {
+            "default_format": {
+              "type": "string",
+              "enum": ["svg", "png", "json", "markdown"],
+              "default": "svg"
+            },
+            "include_metadata": {"type": "boolean", "default": true},
+            "include_legend": {"type": "boolean", "default": true},
+            "high_resolution": {"type": "boolean", "default": false},
+            "transparent_background": {"type": "boolean", "default": true}
+          }
+        }
+      }
+    },
+    "tours": {
+      "type": "object",
+      "description": "Tour generation configuration",
+      "properties": {
+        "auto_generation": {
+          "type": "object",
+          "properties": {
+            "enabled": {"type": "boolean", "default": true},
+            "trigger_on": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["new_function", "high_complexity", "side_effects", "documentation_gap"]
+              },
+              "default": ["high_complexity", "side_effects"]
+            },
+            "max_tours_per_session": {"type": "integer", "default": 5}
+          }
+        },
+        "content": {
+          "type": "object",
+          "properties": {
+            "max_steps": {"type": "integer", "default": 10},
+            "include_examples": {"type": "boolean", "default": true},
+            "include_tests": {"type": "boolean", "default": false},
+            "include_documentation": {"type": "boolean", "default": true},
+            "difficulty_level": {
+              "type": "string",
+              "enum": ["beginner", "intermediate", "advanced"],
+              "default": "intermediate"
+            },
+            "estimated_duration_minutes": {"type": "integer", "default": 15}
+          }
+        },
+        "interaction": {
+          "type": "object",
+          "properties": {
+            "interactive_mode": {"type": "boolean", "default": true},
+            "auto_advance": {"type": "boolean", "default": false},
+            "step_timeout_seconds": {"type": "integer", "default": 300},
+            "allow_skipping": {"type": "boolean", "default": true},
+            "show_progress": {"type": "boolean", "default": true}
+          }
+        }
+      }
+    },
+    "lenses": {
+      "type": "object",
+      "description": "Lens configuration",
+      "properties": {
+        "default_seeds": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Default seed functions for new lenses"
+        },
+        "auto_expansion": {
+          "type": "object",
+          "properties": {
+            "enabled": {"type": "boolean", "default": true},
+            "max_depth": {"type": "integer", "default": 3},
+            "include_callees": {"type": "boolean", "default": true},
+            "include_callers": {"type": "boolean", "default": true},
+            "complexity_threshold": {"type": "integer", "default": 5}
+          }
+        },
+        "filtering": {
+          "type": "object",
+          "properties": {
+            "default_filters": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {"type": "string"},
+                  "type": {
+                    "type": "string",
+                    "enum": ["complexity", "side_effects", "module", "language", "custom"]
+                  },
+                  "value": {"type": "string"},
+                  "enabled": {"type": "boolean", "default": true}
+                }
+              }
+            },
+            "save_presets": {"type": "boolean", "default": true},
+            "max_presets": {"type": "integer", "default": 10}
+          }
+        }
+      }
+    },
+    "traces": {
+      "type": "object",
+      "description": "Tracing configuration",
+      "properties": {
+        "execution": {
+          "type": "object",
+          "properties": {
+            "max_depth": {"type": "integer", "default": 10},
+            "include_line_numbers": {"type": "boolean", "default": true},
+            "include_variables": {"type": "boolean", "default": false},
+            "include_timing": {"type": "boolean", "default": true},
+            "include_memory": {"type": "boolean", "default": false},
+            "sample_rate": {"type": "number", "minimum": 0, "maximum": 1, "default": 1.0}
+          }
+        },
+        "filtering": {
+          "type": "object",
+          "properties": {
+            "include_patterns": {
+              "type": "array",
+              "items": {"type": "string"}
+            },
+            "exclude_patterns": {
+              "type": "array",
+              "items": {"type": "string"},
+              "default": [
+                "**/test_*",
+                "**/*_test.py",
+                "**/tests/**",
+                "**/__pycache__/**"
+              ]
+            },
+            "min_execution_time_ms": {"type": "number", "default": 1.0}
+          }
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "format": {
+              "type": "string",
+              "enum": ["json", "csv", "html"],
+              "default": "json"
+            },
+            "include_hot_paths": {"type": "boolean", "default": true},
+            "include_performance_metrics": {"type": "boolean", "default": true},
+            "compress_output": {"type": "boolean", "default": false}
+          }
+        }
+      }
+    },
+    "integrations": {
+      "type": "object",
+      "description": "External integrations configuration",
+      "properties": {
+        "github": {
+          "type": "object",
+          "properties": {
+            "enabled": {"type": "boolean", "default": true},
+            "token": {"type": "string"},
+            "webhook_secret": {"type": "string"},
+            "default_repository": {"type": "string"},
+            "comment_templates": {
+              "type": "object",
+              "properties": {
+                "pr_analysis": {"type": "string"},
+                "complexity_alert": {"type": "string"},
+                "side_effects_alert": {"type": "string"}
+              }
+            }
+          }
+        },
+        "vscode": {
+          "type": "object",
+          "properties": {
+            "enabled": {"type": "boolean", "default": true},
+            "auto_sync": {"type": "boolean", "default": true},
+            "show_codelens": {"type": "boolean", "default": true},
+            "show_hover_cards": {"type": "boolean", "default": true},
+            "panel_position": {
+              "type": "string",
+              "enum": ["left", "right", "bottom"],
+              "default": "right"
+            }
+          }
+        },
+        "web_demo": {
+          "type": "object",
+          "properties": {
+            "enabled": {"type": "boolean", "default": true},
+            "port": {"type": "integer", "default": 8080},
+            "host": {"type": "string", "default": "localhost"},
+            "debug_mode": {"type": "boolean", "default": false},
+            "cors_origins": {
+              "type": "array",
+              "items": {"type": "string"},
+              "default": ["http://localhost:3000", "http://localhost:8080"]
+            }
+          }
+        }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "description": "Performance optimization configuration",
+      "properties": {
+        "caching": {
+          "type": "object",
+          "properties": {
+            "enabled": {"type": "boolean", "default": true},
+            "cache_directory": {"type": "string", "default": ".understand-first/cache"},
+            "max_cache_size_mb": {"type": "integer", "default": 500},
+            "cache_ttl_hours": {"type": "integer", "default": 24},
+            "invalidate_on_change": {"type": "boolean", "default": true}
+          }
+        },
+        "parallel_processing": {
+          "type": "object",
+          "properties": {
+            "enabled": {"type": "boolean", "default": true},
+            "max_workers": {"type": "integer", "default": 4},
+            "chunk_size": {"type": "integer", "default": 100},
+            "timeout_seconds": {"type": "integer", "default": 300}
+          }
+        },
+        "memory": {
+          "type": "object",
+          "properties": {
+            "max_memory_mb": {"type": "integer", "default": 2048},
+            "gc_threshold": {"type": "integer", "default": 100},
+            "optimize_for_size": {"type": "boolean", "default": false}
+          }
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "description": "Security configuration",
+      "properties": {
+        "data_collection": {
+          "type": "object",
+          "properties": {
+            "enabled": {"type": "boolean", "default": true},
+            "anonymous_only": {"type": "boolean", "default": true},
+            "opt_in_required": {"type": "boolean", "default": true},
+            "data_retention_days": {"type": "integer", "default": 90},
+            "encrypt_sensitive_data": {"type": "boolean", "default": true}
+          }
+        },
+        "access_control": {
+          "type": "object",
+          "properties": {
+            "require_authentication": {"type": "boolean", "default": false},
+            "allowed_users": {
+              "type": "array",
+              "items": {"type": "string"}
+            },
+            "allowed_repositories": {
+              "type": "array",
+              "items": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "description": "Logging configuration",
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+          "default": "INFO"
+        },
+        "format": {
+          "type": "string",
+          "enum": ["json", "text", "detailed"],
+          "default": "text"
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "console": {"type": "boolean", "default": true},
+            "file": {"type": "boolean", "default": false},
+            "file_path": {"type": "string", "default": "understand-first.log"},
+            "max_file_size_mb": {"type": "integer", "default": 100},
+            "backup_count": {"type": "integer", "default": 5}
+          }
+        },
+        "filters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {"type": "string"},
+              "level": {"type": "string"},
+              "module": {"type": "string"},
+              "message_pattern": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Configuration metadata",
+      "properties": {
+        "created_at": {"type": "string", "format": "date-time"},
+        "updated_at": {"type": "string", "format": "date-time"},
+        "version": {"type": "string"},
+        "environment": {"type": "string"},
+        "author": {"type": "string"},
+        "description": {"type": "string"},
+        "tags": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      }
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "version": "1.0",
+      "repository": {
+        "name": "my-project",
+        "main_branch": "main",
+        "languages": ["python", "javascript"]
+      },
+      "analysis": {
+        "complexity": {
+          "enabled": true,
+          "threshold": 15
+        },
+        "side_effects": {
+          "enabled": true,
+          "detect_io": true
+        }
+      },
+      "visualization": {
+        "default_layout": "hierarchical",
+        "node_sizing": "complexity"
+      },
+      "tours": {
+        "auto_generation": {
+          "enabled": true,
+          "max_tours_per_session": 3
+        }
+      },
+      "integrations": {
+        "github": {
+          "enabled": true
+        },
+        "vscode": {
+          "enabled": true,
+          "auto_sync": true
+        }
+      },
+      "performance": {
+        "caching": {
+          "enabled": true,
+          "max_cache_size_mb": 1000
+        }
+      }
+    }
+  ]
+}

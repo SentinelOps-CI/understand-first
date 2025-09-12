@@ -1,0 +1,394 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://understand-first.dev/schemas/lens-schema.json",
+  "title": "Understand-First Understanding Lens",
+  "description": "Schema for understanding lenses created by `u lens` command",
+  "type": "object",
+  "required": ["version", "lens", "functions"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Schema version",
+      "enum": ["1.0"],
+      "default": "1.0"
+    },
+    "lens": {
+      "type": "object",
+      "description": "Lens configuration and metadata",
+      "required": ["name", "seeds", "created_at"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Human-readable name for this lens"
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of what this lens focuses on"
+        },
+        "seeds": {
+          "type": "array",
+          "description": "Seed functions or files that define the lens scope",
+          "items": {
+            "type": "string"
+          }
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When this lens was created"
+        },
+        "created_by": {
+          "type": "string",
+          "description": "Who created this lens"
+        },
+        "hops": {
+          "type": "integer",
+          "description": "Number of hops from seeds to include",
+          "minimum": 1,
+          "maximum": 10,
+          "default": 2
+        },
+        "max_functions": {
+          "type": "integer",
+          "description": "Maximum number of functions to include",
+          "minimum": 1,
+          "default": 50
+        },
+        "filters": {
+          "type": "object",
+          "description": "Filters applied to the lens",
+          "properties": {
+            "complexity_threshold": {
+              "type": "number",
+              "description": "Minimum complexity to include",
+              "minimum": 1
+            },
+            "include_side_effects": {
+              "type": "boolean",
+              "description": "Include functions with side effects",
+              "default": true
+            },
+            "include_async": {
+              "type": "boolean",
+              "description": "Include async functions",
+              "default": true
+            },
+            "exclude_tests": {
+              "type": "boolean",
+              "description": "Exclude test functions",
+              "default": true
+            },
+            "file_patterns": {
+              "type": "array",
+              "description": "File patterns to include/exclude",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "ranking": {
+          "type": "object",
+          "description": "How functions are ranked in the lens",
+          "properties": {
+            "method": {
+              "type": "string",
+              "enum": ["error_proximity", "complexity", "call_frequency", "manual", "custom"],
+              "default": "error_proximity"
+            },
+            "weights": {
+              "type": "object",
+              "description": "Weights for ranking factors",
+              "properties": {
+                "complexity": {"type": "number", "minimum": 0, "maximum": 1},
+                "call_frequency": {"type": "number", "minimum": 0, "maximum": 1},
+                "side_effects": {"type": "number", "minimum": 0, "maximum": 1},
+                "error_proximity": {"type": "number", "minimum": 0, "maximum": 1}
+              }
+            }
+          }
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Additional lens metadata",
+          "properties": {
+            "source": {
+              "type": "string",
+              "enum": ["manual", "from_seeds", "from_issue", "from_trace", "preset"],
+              "description": "How this lens was created"
+            },
+            "preset_name": {
+              "type": "string",
+              "description": "Name of preset used (if applicable)"
+            },
+            "issue_url": {
+              "type": "string",
+              "description": "URL of issue this lens is based on (if applicable)"
+            },
+            "tags": {
+              "type": "array",
+              "description": "Tags for categorization",
+              "items": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
+    "functions": {
+      "type": "object",
+      "description": "Functions included in this lens with enhanced metadata",
+      "patternProperties": {
+        "^[^:]+:[^:]+$": {
+          "type": "object",
+          "description": "Enhanced function metadata for lens",
+          "required": ["name", "file", "line", "rank", "included_reason"],
+          "allOf": [
+            {
+              "$ref": "#/definitions/BaseFunction"
+            },
+            {
+              "properties": {
+                "rank": {
+                  "type": "integer",
+                  "description": "Ranking position in lens (lower = higher priority)",
+                  "minimum": 1
+                },
+                "included_reason": {
+                  "type": "string",
+                  "enum": ["seed", "direct_call", "indirect_call", "high_complexity", "side_effects", "manual"],
+                  "description": "Why this function was included"
+                },
+                "error_proximity": {
+                  "type": "number",
+                  "description": "Error proximity score (0-1, higher = closer to errors)",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "importance_score": {
+                  "type": "number",
+                  "description": "Overall importance score",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "call_depth": {
+                  "type": "integer",
+                  "description": "Depth from nearest seed",
+                  "minimum": 0
+                },
+                "call_paths": {
+                  "type": "array",
+                  "description": "Paths from seeds to this function",
+                  "items": {
+                    "type": "array",
+                    "items": {"type": "string"}
+                  }
+                },
+                "runtime_hit": {
+                  "type": "boolean",
+                  "description": "Whether this function was called during runtime tracing"
+                },
+                "trace_data": {
+                  "type": "object",
+                  "description": "Runtime trace data (if available)",
+                  "properties": {
+                    "call_count": {"type": "integer"},
+                    "execution_time_ms": {"type": "number"},
+                    "memory_usage_mb": {"type": "number"},
+                    "last_called": {"type": "string", "format": "date-time"}
+                  }
+                },
+                "dependencies": {
+                  "type": "object",
+                  "description": "Dependency analysis",
+                  "properties": {
+                    "external": {
+                      "type": "array",
+                      "items": {"type": "string"}
+                    },
+                    "internal": {
+                      "type": "array",
+                      "items": {"type": "string"}
+                    },
+                    "critical_path": {
+                      "type": "boolean",
+                      "description": "Whether this is on a critical execution path"
+                    }
+                  }
+                },
+                "analysis_notes": {
+                  "type": "array",
+                  "description": "Analysis notes and insights",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "type": {"type": "string"},
+                      "message": {"type": "string"},
+                      "severity": {"type": "string", "enum": ["info", "warning", "error"]}
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "files": {
+      "type": "object",
+      "description": "Files included in this lens",
+      "patternProperties": {
+        "^.+$": {
+          "type": "object",
+          "description": "File metadata for lens",
+          "required": ["path", "function_count"],
+          "properties": {
+            "path": {"type": "string"},
+            "function_count": {"type": "integer"},
+            "included_functions": {
+              "type": "array",
+              "items": {"type": "string"}
+            },
+            "importance_score": {"type": "number"},
+            "complexity_score": {"type": "number"}
+          }
+        }
+      }
+    },
+    "relationships": {
+      "type": "object",
+      "description": "Relationships within the lens scope",
+      "properties": {
+        "call_graph": {
+          "type": "object",
+          "description": "Call relationships between lens functions",
+          "patternProperties": {
+            "^[^:]+:[^:]+$": {
+              "type": "object",
+              "properties": {
+                "calls": {"type": "array", "items": {"type": "string"}},
+                "called_by": {"type": "array", "items": {"type": "string"}}
+              }
+            }
+          }
+        },
+        "dependency_graph": {
+          "type": "object",
+          "description": "Dependency relationships"
+        }
+      }
+    },
+    "statistics": {
+      "type": "object",
+      "description": "Lens statistics and metrics",
+      "properties": {
+        "total_functions": {"type": "integer"},
+        "total_files": {"type": "integer"},
+        "avg_complexity": {"type": "number"},
+        "max_complexity": {"type": "number"},
+        "functions_with_side_effects": {"type": "integer"},
+        "async_functions": {"type": "integer"},
+        "test_functions": {"type": "integer"},
+        "coverage_percentage": {"type": "number"},
+        "generation_time_ms": {"type": "number"}
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Additional lens metadata",
+      "properties": {
+        "generated_at": {"type": "string", "format": "date-time"},
+        "generator_version": {"type": "string"},
+        "source_map": {"type": "string"},
+        "source_trace": {"type": "string"},
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "message": {"type": "string"},
+              "severity": {"type": "string", "enum": ["info", "warning", "error"]}
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "BaseFunction": {
+      "type": "object",
+      "required": ["name", "file", "line", "type"],
+      "properties": {
+        "name": {"type": "string"},
+        "file": {"type": "string"},
+        "line": {"type": "integer"},
+        "type": {"type": "string"},
+        "signature": {"type": "string"},
+        "docstring": {"type": "string"},
+        "complexity": {"type": "number"},
+        "lines": {"type": "integer"},
+        "parameters": {"type": "array"},
+        "return_type": {"type": "string"},
+        "calls": {"type": "array"},
+        "callers": {"type": "array"},
+        "side_effects": {"type": "array"},
+        "is_async": {"type": "boolean"},
+        "visibility": {"type": "string"}
+      }
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "version": "1.0",
+      "lens": {
+        "name": "Bug Fix Analysis",
+        "description": "Functions related to the authentication bug",
+        "seeds": ["auth.py:validate_token", "auth.py:login"],
+        "created_at": "2024-01-15T10:30:00Z",
+        "created_by": "developer",
+        "hops": 2,
+        "max_functions": 20,
+        "filters": {
+          "complexity_threshold": 2,
+          "include_side_effects": true,
+          "exclude_tests": true
+        },
+        "ranking": {
+          "method": "error_proximity"
+        },
+        "metadata": {
+          "source": "from_issue",
+          "issue_url": "https://github.com/org/repo/issues/123",
+          "tags": ["bug-fix", "authentication"]
+        }
+      },
+      "functions": {
+        "auth.py:validate_token": {
+          "name": "validate_token",
+          "file": "auth.py",
+          "line": 15,
+          "type": "function",
+          "complexity": 5,
+          "rank": 1,
+          "included_reason": "seed",
+          "error_proximity": 0.9,
+          "importance_score": 0.95,
+          "call_depth": 0,
+          "runtime_hit": true,
+          "trace_data": {
+            "call_count": 150,
+            "execution_time_ms": 12.5
+          }
+        }
+      },
+      "statistics": {
+        "total_functions": 15,
+        "total_files": 3,
+        "avg_complexity": 3.2,
+        "max_complexity": 8,
+        "functions_with_side_effects": 5,
+        "coverage_percentage": 75.0
+      }
+    }
+  ]
+}

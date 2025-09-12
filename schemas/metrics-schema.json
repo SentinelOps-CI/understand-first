@@ -1,0 +1,453 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://understand-first.dev/schemas/metrics-schema.json",
+  "title": "Understand-First Metrics and Instrumentation",
+  "description": "Schema for metrics and instrumentation data",
+  "type": "object",
+  "required": ["version", "session", "events"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Schema version",
+      "enum": ["1.0"],
+      "default": "1.0"
+    },
+    "session": {
+      "type": "object",
+      "description": "User session information",
+      "required": ["session_id", "start_time"],
+      "properties": {
+        "session_id": {
+          "type": "string",
+          "description": "Unique session identifier"
+        },
+        "user_id": {
+          "type": "string",
+          "description": "Anonymous user identifier"
+        },
+        "start_time": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Session start time"
+        },
+        "end_time": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Session end time"
+        },
+        "platform": {
+          "type": "string",
+          "enum": ["cli", "web", "vscode", "github_action"],
+          "description": "Platform where session occurred"
+        },
+        "version": {
+          "type": "string",
+          "description": "Understand-First version"
+        },
+        "environment": {
+          "type": "object",
+          "description": "Environment information",
+          "properties": {
+            "os": {"type": "string"},
+            "python_version": {"type": "string"},
+            "node_version": {"type": "string"},
+            "browser": {"type": "string"},
+            "screen_resolution": {"type": "string"},
+            "timezone": {"type": "string"}
+          }
+        },
+        "opt_in_tracking": {
+          "type": "boolean",
+          "description": "Whether user opted into tracking"
+        }
+      }
+    },
+    "events": {
+      "type": "array",
+      "description": "Tracked events during session",
+      "items": {
+        "type": "object",
+        "required": ["event_type", "timestamp"],
+        "properties": {
+          "event_type": {
+            "type": "string",
+            "enum": [
+              "session_start",
+              "session_end",
+              "command_executed",
+              "analysis_started",
+              "analysis_completed",
+              "tour_started",
+              "tour_completed",
+              "tour_step_completed",
+              "lens_created",
+              "lens_applied",
+              "map_generated",
+              "trace_started",
+              "trace_completed",
+              "export_generated",
+              "error_occurred",
+              "performance_measurement",
+              "user_interaction",
+              "feature_used"
+            ],
+            "description": "Type of event"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When event occurred"
+          },
+          "duration_ms": {
+            "type": "number",
+            "description": "Event duration in milliseconds"
+          },
+          "properties": {
+            "type": "object",
+            "description": "Event-specific properties",
+            "properties": {
+              "command": {"type": "string"},
+              "success": {"type": "boolean"},
+              "error_message": {"type": "string"},
+              "function_count": {"type": "integer"},
+              "file_count": {"type": "integer"},
+              "complexity_score": {"type": "number"},
+              "side_effects_count": {"type": "integer"},
+              "tour_step": {"type": "string"},
+              "tour_duration_minutes": {"type": "number"},
+              "lens_name": {"type": "string"},
+              "map_size": {"type": "integer"},
+              "trace_duration_ms": {"type": "number"},
+              "export_format": {"type": "string"},
+              "export_size": {"type": "integer"},
+              "user_action": {"type": "string"},
+              "feature_name": {"type": "string"},
+              "performance_metric": {"type": "string"},
+              "performance_value": {"type": "number"},
+              "memory_usage_mb": {"type": "number"},
+              "cpu_usage_percent": {"type": "number"},
+              "repository_size": {"type": "integer"},
+              "language": {"type": "string"},
+              "complexity_threshold": {"type": "integer"},
+              "filter_applied": {"type": "string"},
+              "visualization_type": {"type": "string"},
+              "interaction_type": {"type": "string"},
+              "retry_count": {"type": "integer"},
+              "funnel_step": {"type": "string"},
+              "funnel_name": {"type": "string"}
+            }
+          },
+          "context": {
+            "type": "object",
+            "description": "Additional event context",
+            "properties": {
+              "repository": {"type": "string"},
+              "branch": {"type": "string"},
+              "commit": {"type": "string"},
+              "pr_number": {"type": "string"},
+              "workflow_run": {"type": "string"},
+              "extension_version": {"type": "string"},
+              "vscode_version": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "description": "Performance metrics",
+      "properties": {
+        "operations": {
+          "type": "array",
+          "description": "Performance measurements for operations",
+          "items": {
+            "type": "object",
+            "required": ["operation", "duration_ms"],
+            "properties": {
+              "operation": {
+                "type": "string",
+                "enum": [
+                  "scan_repository",
+                  "generate_map",
+                  "create_lens",
+                  "generate_tour",
+                  "start_trace",
+                  "stop_trace",
+                  "export_data",
+                  "render_visualization",
+                  "load_map",
+                  "apply_filter",
+                  "search_functions",
+                  "analyze_complexity",
+                  "detect_side_effects"
+                ]
+              },
+              "duration_ms": {"type": "number"},
+              "memory_peak_mb": {"type": "number"},
+              "cpu_peak_percent": {"type": "number"},
+              "input_size": {"type": "integer"},
+              "output_size": {"type": "integer"},
+              "cache_hit": {"type": "boolean"},
+              "parallel_operations": {"type": "integer"},
+              "timestamp": {"type": "string", "format": "date-time"}
+            }
+          }
+        },
+        "system_metrics": {
+          "type": "object",
+          "description": "System-level performance metrics",
+          "properties": {
+            "total_memory_mb": {"type": "number"},
+            "available_memory_mb": {"type": "number"},
+            "cpu_usage_percent": {"type": "number"},
+            "disk_usage_percent": {"type": "number"},
+            "network_latency_ms": {"type": "number"},
+            "timestamp": {"type": "string", "format": "date-time"}
+          }
+        },
+        "bottlenecks": {
+          "type": "array",
+          "description": "Identified performance bottlenecks",
+          "items": {
+            "type": "object",
+            "properties": {
+              "operation": {"type": "string"},
+              "severity": {"type": "string", "enum": ["low", "medium", "high", "critical"]},
+              "description": {"type": "string"},
+              "recommendation": {"type": "string"},
+              "timestamp": {"type": "string", "format": "date-time"}
+            }
+          }
+        }
+      }
+    },
+    "user_experience": {
+      "type": "object",
+      "description": "User experience metrics",
+      "properties": {
+        "time_to_understanding": {
+          "type": "object",
+          "description": "TTU metrics",
+          "properties": {
+            "first_map_minutes": {"type": "number"},
+            "first_tour_minutes": {"type": "number"},
+            "first_lens_minutes": {"type": "number"},
+            "overall_ttu_minutes": {"type": "number"},
+            "ttu_threshold_met": {"type": "boolean"}
+          }
+        },
+        "time_to_first_safe_change": {
+          "type": "object",
+          "description": "TTFSC metrics",
+          "properties": {
+            "first_change_hours": {"type": "number"},
+            "first_safe_change_hours": {"type": "number"},
+            "ttfsc_threshold_met": {"type": "boolean"},
+            "change_type": {"type": "string"},
+            "change_confidence": {"type": "number"}
+          }
+        },
+        "engagement": {
+          "type": "object",
+          "description": "User engagement metrics",
+          "properties": {
+            "session_duration_minutes": {"type": "number"},
+            "commands_executed": {"type": "integer"},
+            "tours_completed": {"type": "integer"},
+            "lenses_created": {"type": "integer"},
+            "exports_generated": {"type": "integer"},
+            "features_used": {"type": "array", "items": {"type": "string"}},
+            "return_visits": {"type": "integer"}
+          }
+        },
+        "funnel_analysis": {
+          "type": "array",
+          "description": "Funnel conversion analysis",
+          "items": {
+            "type": "object",
+            "required": ["funnel_name", "steps"],
+            "properties": {
+              "funnel_name": {"type": "string"},
+              "steps": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["step_name", "conversion_rate"],
+                  "properties": {
+                    "step_name": {"type": "string"},
+                    "conversion_rate": {"type": "number", "minimum": 0, "maximum": 1},
+                    "drop_off_rate": {"type": "number", "minimum": 0, "maximum": 1},
+                    "avg_time_seconds": {"type": "number"},
+                    "user_count": {"type": "integer"}
+                  }
+                }
+              },
+              "overall_conversion": {"type": "number", "minimum": 0, "maximum": 1}
+            }
+          }
+        },
+        "error_analysis": {
+          "type": "object",
+          "description": "Error and issue analysis",
+          "properties": {
+            "total_errors": {"type": "integer"},
+            "error_types": {
+              "type": "object",
+              "patternProperties": {
+                "^.*$": {"type": "integer"}
+              }
+            },
+            "retry_events": {"type": "integer"},
+            "rage_clicks": {"type": "integer"},
+            "support_requests": {"type": "integer"},
+            "most_common_errors": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "error": {"type": "string"},
+                  "count": {"type": "integer"},
+                  "percentage": {"type": "number"}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "kpis": {
+      "type": "object",
+      "description": "Key Performance Indicators",
+      "properties": {
+        "adoption": {
+          "type": "object",
+          "properties": {
+            "daily_active_users": {"type": "integer"},
+            "weekly_active_users": {"type": "integer"},
+            "monthly_active_users": {"type": "integer"},
+            "new_users_today": {"type": "integer"},
+            "retention_rate": {"type": "number", "minimum": 0, "maximum": 1}
+          }
+        },
+        "usage": {
+          "type": "object",
+          "properties": {
+            "commands_per_session": {"type": "number"},
+            "avg_session_duration_minutes": {"type": "number"},
+            "feature_adoption_rate": {"type": "number", "minimum": 0, "maximum": 1},
+            "export_usage": {"type": "integer"},
+            "tour_completion_rate": {"type": "number", "minimum": 0, "maximum": 1}
+          }
+        },
+        "quality": {
+          "type": "object",
+          "properties": {
+            "ttu_achievement_rate": {"type": "number", "minimum": 0, "maximum": 1},
+            "ttfsc_achievement_rate": {"type": "number", "minimum": 0, "maximum": 1},
+            "error_rate": {"type": "number", "minimum": 0, "maximum": 1},
+            "user_satisfaction_score": {"type": "number", "minimum": 1, "maximum": 5},
+            "support_ticket_rate": {"type": "number"}
+          }
+        },
+        "performance": {
+          "type": "object",
+          "properties": {
+            "avg_operation_time_ms": {"type": "number"},
+            "p95_operation_time_ms": {"type": "number"},
+            "p99_operation_time_ms": {"type": "number"},
+            "memory_efficiency": {"type": "number"},
+            "cpu_efficiency": {"type": "number"}
+          }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Additional metrics metadata",
+      "properties": {
+        "generated_at": {"type": "string", "format": "date-time"},
+        "generator_version": {"type": "string"},
+        "collection_period": {
+          "type": "object",
+          "properties": {
+            "start": {"type": "string", "format": "date-time"},
+            "end": {"type": "string", "format": "date-time"}
+          }
+        },
+        "data_source": {
+          "type": "string",
+          "enum": ["cli", "web", "vscode", "github_action", "dashboard"]
+        },
+        "privacy_level": {
+          "type": "string",
+          "enum": ["anonymous", "aggregated", "detailed"],
+          "description": "Level of privacy protection applied"
+        },
+        "anonymization_applied": {
+          "type": "boolean",
+          "description": "Whether data was anonymized"
+        }
+      }
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "version": "1.0",
+      "session": {
+        "session_id": "sess_12345",
+        "user_id": "user_67890",
+        "start_time": "2024-01-15T10:00:00Z",
+        "platform": "cli",
+        "version": "1.0.0",
+        "opt_in_tracking": true
+      },
+      "events": [
+        {
+          "event_type": "command_executed",
+          "timestamp": "2024-01-15T10:00:30Z",
+          "duration_ms": 2500,
+          "properties": {
+            "command": "u scan",
+            "success": true,
+            "function_count": 45,
+            "file_count": 12
+          }
+        }
+      ],
+      "performance": {
+        "operations": [
+          {
+            "operation": "scan_repository",
+            "duration_ms": 2500,
+            "memory_peak_mb": 128.5,
+            "input_size": 50000,
+            "timestamp": "2024-01-15T10:00:30Z"
+          }
+        ]
+      },
+      "user_experience": {
+        "time_to_understanding": {
+          "first_map_minutes": 3.5,
+          "overall_ttu_minutes": 8.2,
+          "ttu_threshold_met": true
+        },
+        "engagement": {
+          "session_duration_minutes": 15.5,
+          "commands_executed": 8,
+          "features_used": ["scan", "map", "lens"]
+        }
+      },
+      "kpis": {
+        "usage": {
+          "commands_per_session": 8.0,
+          "avg_session_duration_minutes": 15.5
+        },
+        "quality": {
+          "ttu_achievement_rate": 0.85,
+          "error_rate": 0.02
+        }
+      }
+    }
+  ]
+}

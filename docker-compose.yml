@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  understand-first:
+    build: .
+    container_name: understand-first
+    ports:
+      - "8000:8000"
+      - "50051:50051"
+    volumes:
+      - ./examples:/app/examples:ro
+      - ./maps:/app/maps
+      - ./tours:/app/tours
+      - ./contracts:/app/contracts
+      - ./traces:/app/traces
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    command: ["demo"]
+    healthcheck:
+      test: ["CMD", "u", "doctor"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    container_name: understand-first-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: understand-first-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: understand_first
+      POSTGRES_USER: understand_first
+      POSTGRES_PASSWORD: understand_first
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U understand_first"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  postgres_data:

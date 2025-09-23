@@ -43,27 +43,51 @@
 
 ## Quick Start
 
-### Option 1: Try Without Installation
+Get up and running with Understand-First in under 10 minutes!
+
+### Option 1: One-Command Install & Run (Recommended)
+
+**From PyPI:**
+```bash
+pip install understand-first
+u --help
+```
+
+**From Docker:**
+```bash
+docker run --rm ghcr.io/sentinelops-ci/understand-first:latest --help
+```
+
+**From Source:**
+```bash
+git clone https://github.com/your-org/understand-first.git
+cd understand-first
+make dev
+make run
+```
+
+### Option 2: Try Without Installation
 1. **Web Playground**: Open [web_demo/index.html](web_demo/index.html) in your browser
 2. **Paste Code**: Try the interactive code analysis
 3. **Explore Features**: Test tours, exports, and visualizations
 
-### Option 2: Full Installation
+### Option 3: Full Development Setup
 ```bash
-# requirements: Python 3.10+
-cd cli
-pip install -e .
+# Clone and setup
+git clone https://github.com/sentinelops-ci/understand-first.git
+cd understand-first
 
-# Interactive setup with wizard
-u init --wizard
+# One-command setup
+make dev
 
-# Or manual setup
-u scan ../examples/python_toy -o ../maps/repo.json
-u lens from-seeds --map ../maps/repo.json --seed compute -o ../maps/lens.json
-u tour ../maps/lens.json -o ../tours/local.md
+# Run the application
+make run
+
+# Try the demo
+u demo
 ```
 
-### Option 3: Use Project Templates
+### Option 4: Use Project Templates
 ```bash
 # Initialize with project template
 u init --wizard
@@ -78,6 +102,27 @@ u init --wizard
 # - Go application
 # - Java application
 # - Python project
+```
+
+### Quick Commands
+
+Once installed, try these commands:
+
+```bash
+# Check system health
+u doctor
+
+# Run interactive demo
+u demo
+
+# Scan your codebase
+u scan . -o maps/repo.json
+
+# Create understanding lens
+u lens from-seeds --map maps/repo.json --seed main -o maps/lens.json
+
+# Generate understanding tour
+u tour maps/lens.json -o tours/understanding.md
 ```
 
 ### Complete Workflow
@@ -461,7 +506,7 @@ metrics:
 
 ## Understand-First Integration
 
-This project uses [Understand-First](https://github.com/your-org/understand-first) for automated code understanding and documentation generation.
+This project uses [Understand-First](https://github.com/sentinelops-ci/understand-first) for automated code understanding and documentation generation.
 
 ### Quick Start
 
@@ -515,6 +560,6 @@ Install the Understand-First VS Code extension for:
 
 ### Learn More
 
-- [Documentation](https://github.com/your-org/understand-first#readme)
-- [Examples](https://github.com/your-org/understand-first/tree/main/examples)
-- [Web Playground](https://your-org.github.io/understand-first/demo)
+- [Documentation](https://github.com/sentinelops-ci/understand-first#readme)
+- [Examples](https://github.com/sentinelops-ci/understand-first/tree/main/examples)
+- [Web Playground](https://sentinelops-ci.github.io/understand-first/demo)

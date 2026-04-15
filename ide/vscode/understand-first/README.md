@@ -21,3 +21,12 @@ u trace module examples/app/hot_path.py run_hot_path -o traces/tour.json
 u lens merge-trace maps/lens.json traces/tour.json -o maps/lens_merged.json
 ```
 2) Open VS Code in the repository and run: Understand-First: Show Tour
+
+### Development (extension folder)
+```bash
+cd ide/vscode/understand-first
+npm ci
+npm run lint
+npx @vscode/vsce package --no-yarn --skip-license
+```
+`npm run lint` runs `node --check extension.js` (same as CI).

@@ -12,7 +12,8 @@ jobs:
           python-version: '3.11'
       - name: Install CLI
         run: |
-          cd cli && pip install -e .
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev,examples]"
       - name: Build lens (base)
         run: |
           git fetch origin ${{ github.base_ref }} --depth=1 || true

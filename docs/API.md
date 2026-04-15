@@ -15,8 +15,10 @@ This document provides comprehensive API documentation for Understand-First.
 
 ### Main Entry Point
 
+After installing the package (see the root `README.md`), the CLI is available as `u` (and as `understand-first`). There is no `u.py` at the repository root.
+
 ```bash
-python u.py [command] [options]
+u [command] [options]
 ```
 
 ### Available Commands
@@ -400,8 +402,8 @@ python examples/fastapi_ecommerce/main.py
 
 ### React Dashboard
 
-#### `src/App.js`
-React application with hooks and state management.
+#### `src/App.jsx`
+React application with hooks and state management (Vite).
 
 **Features:**
 - React hooks
@@ -413,7 +415,9 @@ React application with hooks and state management.
 **Usage:**
 ```bash
 cd examples/react_dashboard
-npm install && npm start
+npm ci
+npm run dev
+# npm run build
 ```
 
 ### Microservices
@@ -474,7 +478,7 @@ python manage.py runserver
 
 #### `ModuleNotFoundError`
 - **Cause**: Missing dependencies
-- **Solution**: Install required packages with `pip install -r requirements.txt`
+- **Solution**: Install required packages with `pip install -e ".[dev,examples]"` or `uv sync --all-extras` (see `pyproject.toml` optional dependencies)
 
 #### `ImportError: attempted relative import`
 - **Cause**: Running module directly with relative imports
@@ -512,9 +516,9 @@ The system includes automatic error recovery:
 ### Common Issues
 
 1. **CLI Not Working**
-   - Check Python version (3.10+ required)
+   - Check Python version (3.9+ required; see `requires-python` in `pyproject.toml`)
    - Verify virtual environment activation
-   - Install dependencies
+   - Install dependencies (`uv sync --all-extras` or `pip install -e ".[dev,examples]"`)
 
 2. **Web Demo Not Loading**
    - Check file paths
@@ -536,11 +540,11 @@ The system includes automatic error recovery:
 ## Version Compatibility
 
 ### Python Version
-- Minimum: Python 3.10
-- Recommended: Python 3.11+
+- Minimum: Python 3.9 (see `requires-python` in `pyproject.toml`)
+- Recommended: Latest supported CPython (CI tests 3.9 through 3.13)
 
 ### Dependencies
-- See `requirements.txt` for exact versions
+- See `uv.lock` / exported `requirements.txt` for resolved versions; optional groups are defined in `pyproject.toml`
 - Use virtual environment for isolation
 - Update dependencies regularly
 

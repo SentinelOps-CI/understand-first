@@ -15,3 +15,5 @@ We will acknowledge reports within 72 hours and provide a timeline for remediati
 
 ## Supported Versions
 This is an active repository; we support the latest `main` branch and the most recent tagged release. Security fixes may be backported at the maintainers’ discretion.
+
+The Python package targets the interpreter range in `requires-python` (see the root `pyproject.toml`). Prefer installing with pinned dependencies (`uv.lock` / `uv sync --frozen`) or the exported `requirements.txt` when deploying.

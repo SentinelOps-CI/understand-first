@@ -23,6 +23,7 @@ Common commands:
   - `u contracts stub-tests contracts/contracts.yaml -o tests/test_contracts.py`
 
 Notes:
+- Commands assume the Understand-First CLI (`u`) is on your `PATH` after installing the package from the repository root (`uv sync --all-extras` or `pip install -e ".[dev,examples]"`).
 - OpenAPI generation prefers operationId for function names; otherwise a sanitized verb/path is used.
 - PROTO modules record RPC names only; enrich pre/post conditions as you adopt contracts.
 - The verify-lean command checks that each function has a corresponding theorem stub in `contracts/lean/`.

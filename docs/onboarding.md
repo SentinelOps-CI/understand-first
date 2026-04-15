@@ -4,7 +4,8 @@ Follow these steps to build understanding artifacts for this repository.
 
 1) Install and bootstrap
 ```bash
-pip install -e cli
+uv sync --all-extras
+# or: pip install -e ".[dev,examples]"
 ```
 
 2) Build a repository map

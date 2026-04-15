@@ -1,5 +1,7 @@
 # Understand-First GitHub PR Commenter
 
+This service has its own `requirements.txt` and `Dockerfile` in this directory. The core Understand-First toolkit is installed separately from the **repository root** (`uv sync --all-extras` or `pip install -e ".[dev,examples]"`).
+
 A comprehensive GitHub PR analysis service that automatically comments on pull requests with detailed code analysis, policy compliance checks, and visualizations.
 
 ## Features

@@ -1,0 +1,20 @@
+name: Setup Understand-First (uv)
+description: Install Python and sync dependencies from uv.lock (dev + examples extras).
+inputs:
+  python-version:
+    description: Python version for setup-python
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
+    - name: Sync environment
+      shell: bash
+      run: uv sync --all-extras --frozen

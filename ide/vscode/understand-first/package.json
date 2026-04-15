@@ -3,9 +3,12 @@
   "displayName": "Understand-First (TTU)",
   "version": "0.2.0",
   "engines": { "vscode": "^1.90.0" },
+  "scripts": {
+    "lint": "node --check extension.js"
+  },
   "activationEvents": [
-    "onStartupFinished", 
-    "onCommand:understandFirst.showTour", 
+    "onStartupFinished",
+    "onCommand:understandFirst.showTour",
     "onCommand:understandFirst.explainErrorPropagation",
     "onLanguage:python",
     "onFileSystem:maps"

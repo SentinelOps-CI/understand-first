@@ -2,17 +2,18 @@ name: Publish Understanding Pack
 on:
   workflow_dispatch: {}
   push:
-    branches: [ main ]
-    paths: [ 'tours/**', 'docs/**', 'maps/**' ]
+    branches: [main]
+    paths: ["tours/**", "docs/**", "maps/**"]
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: '3.11' }
+        with: { python-version: "3.11" }
       - run: |
-          pip install -e cli
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev,examples]"
           u pack --publish
       - name: Prepare site
         run: |
@@ -24,7 +25,7 @@ jobs:
           test -f maps/delta.svg && cp maps/delta.svg site/delta.svg && echo "<li><a href='/site/delta.svg'>delta.svg</a></li>" >> site/index.html || true
           echo "</ul>" >> site/index.html
       - uses: actions/upload-pages-artifact@v3
-        with: { path: '.' }
+        with: { path: "." }
   deploy:
     needs: build
     permissions:

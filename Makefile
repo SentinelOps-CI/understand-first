@@ -14,14 +14,13 @@ help:
 	@echo "  docker-run   - Run Docker container"
 	@echo "  docker-push   - Push Docker image to registry"
 
-# Development setup
+# Development setup (prefer uv + uv.lock; fallback: pip extras)
 bootstrap: dev
 
 dev:
 	@echo "Setting up local development environment..."
 	python3 -m pip install --upgrade pip
-	pip install -e .
-	pip install -r requirements.txt
+	@command -v uv >/dev/null 2>&1 && uv sync --all-extras || pip install -e ".[dev,examples]"
 	@echo "Development environment ready!"
 	@echo "Run 'make run' to start the application"
 
@@ -37,7 +36,7 @@ run:
 	@echo "gRPC: localhost:50051"
 	@echo "Run 'u demo' to see a complete example"
 
-# Build and publish (with dry-run support)
+# Build and publish (dry-run supported)
 release:
 	@echo "Building package..."
 	python -m build
@@ -52,7 +51,7 @@ release:
 test: ci-local
 
 ci-local:
-	pytest -q
+	@command -v uv >/dev/null 2>&1 && uv run pytest -q || pytest -q
 
 # Clean build artifacts
 clean:
@@ -66,7 +65,7 @@ clean:
 
 # Package management
 install:
-	pip install -e .
+	pip install -e ".[dev,examples]"
 
 uninstall:
 	pip uninstall understand-first -y
@@ -101,4 +100,4 @@ wheel:
 	python -m build
 
 smoke:
-	pytest -q
+	@command -v uv >/dev/null 2>&1 && uv run pytest -q || pytest -q

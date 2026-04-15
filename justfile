@@ -2,15 +2,14 @@ set shell := ["bash", "-uc"]
 
 bootstrap:
 	python3 -m pip install --upgrade pip
-	pip install -r requirements.txt
-	cd cli && pip install -e .
+	command -v uv >/dev/null 2>&1 && uv sync --all-extras || pip install -e ".[dev,examples]"
 
 dev:
 	uvicorn examples.servers.http_server:app --host 127.0.0.1 --port 8000 &
 	python examples/servers/grpc_server.py &
 
 ci-local:
-	pytest -q
+	uv run pytest -q
 
 tour:
 	u scan . -o maps/repo.json || true
@@ -23,7 +22,7 @@ vsix:
 	cd ide/vscode/understand-first && npx --yes @vscode/vsce package --no-yarn
 
 wheel:
-	cd cli && python -m build
+	python -m build
 
 smoke:
-	pytest -q
+	uv run pytest -q

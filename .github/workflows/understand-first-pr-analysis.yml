@@ -30,9 +30,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install typer rich aiohttp asyncpg pydantic
-          # Install understand-first CLI
-          pip install -e ./cli
+          python -m pip install -e ".[dev,examples]"
 
       - name: Run understand-first analysis on base commit
         id: analyze-base

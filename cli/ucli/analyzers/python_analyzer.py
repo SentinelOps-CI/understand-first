@@ -1,5 +1,5 @@
 from __future__ import annotations
-import ast, os, pathlib, hashlib, sqlite3, time
+import ast, json, os, pathlib, hashlib, sqlite3, time
 from typing import Dict, Any, List, Optional, Tuple
 from multiprocessing import Pool, cpu_count
 
@@ -95,9 +95,7 @@ def build_python_map(
             row = cache.get(str(file_path.as_posix()))
             if row and row[0] == mtime and row[1] == size and row[2] == sha:
                 # reuse cached
-                data = (
-                    json.loads(row[3]) if "json" in globals() else __import__("json").loads(row[3])
-                )
+                data = json.loads(row[3])
                 for func, meta in data.items():
                     functions[qn(file_path, func)] = meta
                 continue

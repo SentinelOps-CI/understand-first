@@ -85,9 +85,9 @@ A modern React dashboard application demonstrating:
 - **Responsive Design**: Mobile-friendly interface
 
 ### Key Components
-- `src/App.js`: Main application component
+- `src/App.jsx`: Main application component
 - `src/App.css`: Styling and responsive design
-- `package.json`: Dependencies and scripts
+- `package.json`: Dependencies and scripts (Vite + React)
 - **Custom Hooks**: Data fetching and state management
 - **Components**: Reusable UI components
 
@@ -97,10 +97,11 @@ A modern React dashboard application demonstrating:
 cd examples/react_dashboard
 npm install
 
-# Start development server
-npm start
+# Start development server (Vite)
+npm run dev
 
-# Application will open in browser at http://localhost:3000
+# Production build
+npm run build
 ```
 
 ### Understanding with Understand-First
@@ -262,11 +263,11 @@ u tour maps/django_lens.json -o tours/django_tour.md
 
 ### Prerequisites
 
-1. **Python 3.10+**
-2. **Node.js 16+** (for React example)
-3. **Required Python packages**:
+1. **Python 3.9+** (see `requires-python` in the root `pyproject.toml`)
+2. **Node.js 18+** (for the Vite React example; CI uses Node 20)
+3. **Required Python packages** (from repository root):
    ```bash
-   pip install -r requirements.txt
+   pip install -e ".[examples]"
    ```
 
 ### Quick Start
@@ -312,7 +313,7 @@ When analyzing these examples with Understand-First, pay attention to:
 ### Analysis Strategies
 
 1. **Start with Main Entry Points**
-   - `main.py`, `app.py`, `App.js`
+   - `main.py`, `app.py`, `App.jsx` (or `App.js` in non-Vite setups)
    - These show the overall structure
 
 2. **Follow Data Flow**

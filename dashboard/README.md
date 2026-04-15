@@ -1,5 +1,7 @@
 # Context Debt Dashboard
 
+This directory is a **standalone** dashboard service with its own `requirements.txt` and `Dockerfile`. For the main Understand-First CLI (`u`), maps, and analysis workflows, install from the **repository root** (`uv sync --all-extras` or `pip install -e ".[dev,examples]"`; see the root `README.md`).
+
 A comprehensive dashboard for tracking and visualizing context debt across codebases, including missing documentation, complex call chains, and hotspots.
 
 ## Features

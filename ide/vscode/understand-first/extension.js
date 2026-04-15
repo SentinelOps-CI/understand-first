@@ -9,7 +9,12 @@ let panel = null;
 let statusBarItem = null;
 let currentLens = null;
 let traceOverlay = false;
+let overlayEnabled = true;
+let overlayStatusItem = null;
 
+function readConfig() {
+  return { glossary_path: "docs/glossary.md" };
+}
 
 function parseTopFiles() {
   // Prefer lens_merged.json for stability; fallback to tour markdown
@@ -198,7 +203,7 @@ function pyStrategyFor(typeStr, bounds, enumVals) {
 
 function parseEnumFromPython(typeStr) {
   // typing.Literal["A","B"] or Literal[1,2]
-  const m = (typeStr||'').match(/Literal\\s*\\[\\s*([^\\]]+)\\]/);
+  const m = (typeStr || "").match(/Literal\s*\[\s*([^\]]+)\]/);
   if (!m) return null;
   const parts = m[1].split(',').map(s=>s.trim()).map(s=>s.replace(/^(['"])(.*)\\1$/,'$2'));
   return parts;
@@ -454,7 +459,8 @@ function openTourWalkthrough() {
       const o = state.opened.size, r = state.ran.size;
       const totalF = document.querySelectorAll('a[data-file]').length;
       const totalC = document.querySelectorAll('button[data-cmd]').length;
-      document.getElementById('progress').textContent = `opened ${o}/${totalF} • ran ${r}/${totalC}`;
+      document.getElementById('progress').textContent =
+        'opened ' + o + '/' + totalF + ' • ran ' + r + '/' + totalC;
     }
   </script>
 
@@ -551,120 +557,8 @@ function decorateEditor(editor) {
   editor.setDecorations(decType, decs);
 }
 
-// CodeLens Provider Class
-class UnderstandFirstCodeLensProvider {
-  provideCodeLenses(document, token) {
-    const codeLenses = [];
-    
-    if (!analysisData || !analysisData.functions) {
-      return codeLenses;
-    }
-
-    const text = document.getText();
-    const functionRegex = /def\s+(\w+)\s*\(/g;
-    let match;
-
-    while ((match = functionRegex.exec(text)) !== null) {
-      const functionName = match[1];
-      const line = document.lineAt(document.positionAt(match.index).line);
-      const range = new vscode.Range(
-        document.positionAt(match.index),
-        document.positionAt(match.index + match[0].length)
-      );
-
-      // Find function data
-      const funcData = analysisData.functions[functionName];
-      if (funcData) {
-        const callers = funcData.callers ? funcData.callers.length : 0;
-        const callees = funcData.calls ? funcData.calls.length : 0;
-        const complexity = funcData.complexity || 0;
-        const sideEffects = funcData.side_effects || [];
-
-        // Create CodeLens for function info
-        const infoLens = new vscode.CodeLens(range, {
-          title: `📊 ${callers} callers, ${callees} callees, complexity: ${complexity}`,
-          command: 'understandFirst.showFunctionDetails',
-          arguments: [functionName, funcData]
-        });
-        codeLenses.push(infoLens);
-
-        // Create CodeLens for actions
-        const actionsLens = new vscode.CodeLens(range, {
-          title: '🗺️ Open in Map | ➕ Add to Lens',
-          command: 'understandFirst.showFunctionActions',
-          arguments: [functionName, funcData]
-        });
-        codeLenses.push(actionsLens);
-
-        // Create CodeLens for side effects
-        if (sideEffects.length > 0) {
-          const sideEffectsLens = new vscode.CodeLens(range, {
-            title: `⚠️ Side effects: ${sideEffects.join(', ')}`,
-            command: 'understandFirst.showSideEffects',
-            arguments: [functionName, sideEffects]
-          });
-          codeLenses.push(sideEffectsLens);
-        }
-      }
-    }
-
-    return codeLenses;
-  }
-}
-
-// Hover Provider Class
-class UnderstandFirstHoverProvider {
-  provideHover(document, position, token) {
-    if (!analysisData || !analysisData.functions) {
-      return null;
-    }
-
-    const range = document.getWordRangeAtPosition(position);
-    if (!range) {
-      return null;
-    }
-
-    const word = document.getText(range);
-    const funcData = analysisData.functions[word];
-
-    if (!funcData) {
-      return null;
-    }
-
-    const callers = funcData.callers ? funcData.callers.length : 0;
-    const callees = funcData.calls ? funcData.calls.length : 0;
-    const complexity = funcData.complexity || 0;
-    const sideEffects = funcData.side_effects || [];
-    const isHotPath = funcData.is_hot_path || false;
-    const lastTouched = funcData.last_touched_pr || 'Unknown';
-
-    const hoverContent = new vscode.MarkdownString();
-    hoverContent.appendMarkdown(`## ${word}\n\n`);
-    hoverContent.appendMarkdown(`**File:** ${funcData.file || 'Unknown'}\n`);
-    hoverContent.appendMarkdown(`**Line:** ${funcData.line || 'Unknown'}\n\n`);
-    
-    hoverContent.appendMarkdown(`**Callers:** ${callers}\n`);
-    hoverContent.appendMarkdown(`**Callees:** ${callees}\n`);
-    hoverContent.appendMarkdown(`**Complexity:** ${complexity}\n\n`);
-    
-    if (sideEffects.length > 0) {
-      hoverContent.appendMarkdown(`**Side Effects:** ${sideEffects.join(', ')}\n\n`);
-    }
-    
-    if (isHotPath) {
-      hoverContent.appendMarkdown(`🔥 **Hot Path**\n\n`);
-    }
-    
-    hoverContent.appendMarkdown(`**Last Touched:** ${lastTouched}\n\n`);
-    
-    hoverContent.appendMarkdown(`[Open in Map](command:understandFirst.openInMap?${encodeURIComponent(JSON.stringify({functionName: word, filePath: funcData.file}))}) | [Add to Lens](command:understandFirst.addToLens?${encodeURIComponent(JSON.stringify({functionName: word, filePath: funcData.file}))})`);
-
-    return new vscode.Hover(hoverContent);
-  }
-}
-
 // Panel Management
-function createPanel() {
+function createPanel(context) {
   if (panel) {
     panel.reveal();
     return;
@@ -946,67 +840,18 @@ function loadAnalysisData() {
     if (fs.existsSync(analysisPath)) {
       const data = fs.readFileSync(analysisPath, 'utf8');
       analysisData = JSON.parse(data);
-      updateStatusBar();
+      updateSearchStatusBar();
     }
   } catch (error) {
     console.error('Failed to load analysis data:', error);
   }
 }
 
-function updateStatusBar() {
+function updateSearchStatusBar() {
   if (statusBarItem && analysisData) {
     const functionCount = analysisData.functions ? Object.keys(analysisData.functions).length : 0;
     statusBarItem.text = `$(search) ${functionCount} functions`;
   }
-}
-
-function openFunctionInMap(functionName, filePath) {
-  // Implementation for opening function in map
-  vscode.window.showInformationMessage(`Opening ${functionName} in map...`);
-}
-
-function addFunctionToLens(functionName, filePath) {
-  // Implementation for adding function to lens
-  vscode.window.showInformationMessage(`Adding ${functionName} to lens...`);
-}
-
-function scanRepository() {
-  vscode.window.withProgress({
-    location: vscode.ProgressLocation.Notification,
-    title: "Scanning repository...",
-    cancellable: false
-  }, async (progress) => {
-    return new Promise((resolve, reject) => {
-      exec('u scan', { cwd: vscode.workspace.workspaceFolders[0].uri.fsPath }, (error, stdout, stderr) => {
-        if (error) {
-          vscode.window.showErrorMessage(`Scan failed: ${error.message}`);
-          reject(error);
-        } else {
-          loadAnalysisData();
-          vscode.window.showInformationMessage('Repository scan completed!');
-          resolve();
-        }
-      });
-    });
-  });
-}
-
-function generateTourFromSelection() {
-  const editor = vscode.window.activeTextEditor;
-  if (!editor) {
-    vscode.window.showWarningMessage('No active editor');
-    return;
-  }
-
-  const selection = editor.selection;
-  const selectedText = editor.document.getText(selection);
-  
-  if (!selectedText.trim()) {
-    vscode.window.showWarningMessage('No text selected');
-    return;
-  }
-
-  vscode.window.showInformationMessage('Generating tour from selection...');
 }
 
 function openPRSnippet() {
@@ -1071,32 +916,6 @@ function activate(context) {
     addFunctionToLens(args.functionName, args.filePath);
   }));
 
-  // Panel commands
-  context.subscriptions.push(vscode.commands.registerCommand('understandFirst.openPanel', function () {
-    createPanel();
-  }));
-
-  context.subscriptions.push(vscode.commands.registerCommand('understandFirst.showFunctionDetails', function (functionName, funcData) {
-    vscode.window.showInformationMessage(`Function: ${functionName}, Complexity: ${funcData.complexity || 0}`);
-  }));
-
-  context.subscriptions.push(vscode.commands.registerCommand('understandFirst.showFunctionActions', function (functionName, funcData) {
-    const actions = ['Open in Map', 'Add to Lens', 'Show Details'];
-    vscode.window.showQuickPick(actions).then(selected => {
-      if (selected === 'Open in Map') {
-        openFunctionInMap(functionName, funcData.file);
-      } else if (selected === 'Add to Lens') {
-        addFunctionToLens(functionName, funcData.file);
-      } else if (selected === 'Show Details') {
-        vscode.window.showInformationMessage(`Function: ${functionName}, Complexity: ${funcData.complexity || 0}`);
-      }
-    });
-  }));
-
-  context.subscriptions.push(vscode.commands.registerCommand('understandFirst.showSideEffects', function (functionName, sideEffects) {
-    vscode.window.showInformationMessage(`Side effects in ${functionName}: ${sideEffects.join(', ')}`);
-  }));
-
   context.subscriptions.push(vscode.commands.registerCommand('understandFirst.scanRepo', function () {
     logTTU('repo_scan');
     scanRepository();
@@ -1114,7 +933,7 @@ function activate(context) {
 
   context.subscriptions.push(vscode.commands.registerCommand('understandFirst.openPanel', function () {
     logTTU('panel_open');
-    openUnderstandingPanel();
+    openUnderstandingPanel(context);
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('understandFirst.refreshPanel', function () {
@@ -1148,52 +967,32 @@ function activate(context) {
     analyzeFunction(args.functionName, args.filePath);
   }));
 
-  // Register CodeLens provider
-  context.subscriptions.push(vscode.languages.registerCodeLensProvider(
-    { scheme: 'file', language: 'python' },
-    new UnderstandFirstCodeLensProvider()
-  ));
+  overlayStatusItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 99);
+  overlayStatusItem.text = "$(eye) UF";
+  overlayStatusItem.tooltip = "Understand-First: Click to toggle overlay";
+  overlayStatusItem.command = "understandFirst.toggleOverlay";
+  overlayStatusItem.show();
+  context.subscriptions.push(overlayStatusItem);
 
-  // Register hover provider
-  context.subscriptions.push(vscode.languages.registerHoverProvider(
-    { scheme: 'file', language: 'python' },
-    new UnderstandFirstHoverProvider()
-  ));
-
-  // Register status bar item
-  const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-  statusBarItem.text = "$(eye) UF";
-  statusBarItem.tooltip = "Understand-First: Click to toggle overlay";
-  statusBarItem.command = 'understandFirst.toggleOverlay';
-  statusBarItem.show();
-  context.subscriptions.push(statusBarItem);
-
-  // Register overlay toggle command
-  context.subscriptions.push(vscode.commands.registerCommand('understandFirst.toggleOverlay', function () {
+  context.subscriptions.push(vscode.commands.registerCommand("understandFirst.toggleOverlay", function () {
     overlayEnabled = !overlayEnabled;
-    statusBarItem.text = overlayEnabled ? "$(eye) UF" : "$(eye-closed) UF";
+    overlayStatusItem.text = overlayEnabled ? "$(eye) UF" : "$(eye-closed) UF";
     decorateEditor(vscode.window.activeTextEditor);
-    logTTU('overlay_toggled');
+    logTTU("overlay_toggled");
   }));
 
-  // Initialize overlay state
-  overlayEnabled = true;
-
-  // Enhanced editor decoration with live sync
   decorateEditor(vscode.window.activeTextEditor);
   vscode.window.onDidChangeActiveTextEditor(decorateEditor);
   vscode.workspace.onDidChangeTextDocument(() => decorateEditor(vscode.window.activeTextEditor));
-  
-  // Live map sync - refresh decorations when maps change
-  const watcher = vscode.workspace.createFileSystemWatcher('maps/**/*.json');
+
+  const watcher = vscode.workspace.createFileSystemWatcher("maps/**/*.json");
   watcher.onDidChange(() => {
     decorateEditor(vscode.window.activeTextEditor);
-    updateStatusBar(statusBarItem);
+    updateOverlayStatusBar(overlayStatusItem);
   });
   context.subscriptions.push(watcher);
 
-  // Update status bar with current lens info
-  updateStatusBar(statusBarItem);
+  updateOverlayStatusBar(overlayStatusItem);
 }
 
 class UnderstandFirstCodeLensProvider {
@@ -1442,11 +1241,21 @@ function scanRepository() {
 }
 
 function generateTourFromSelection(args) {
-  const terminal = vscode.window.createTerminal('Understand-First Tour');
-  terminal.sendText(`u lens from-seeds --map maps/repo.json --seed ${args.functionName} -o maps/lens.json`);
-  terminal.sendText('u tour maps/lens.json -o tours/generated.md');
+  let seed = ".";
+  if (args && args.functionName) {
+    seed = args.functionName;
+  } else {
+    const ed = vscode.window.activeTextEditor;
+    if (ed) {
+      const t = ed.document.getText(ed.selection).trim();
+      if (t) seed = t;
+    }
+  }
+  const terminal = vscode.window.createTerminal("Understand-First Tour");
+  terminal.sendText(`u lens from-seeds --map maps/repo.json --seed ${seed} -o maps/lens.json`);
+  terminal.sendText("u tour maps/lens.json -o tours/generated.md");
   terminal.show();
-  logTTU('tour_generate_from_selection');
+  logTTU("tour_generate_from_selection");
 }
 
 function generatePRSnippet() {
@@ -1490,15 +1299,15 @@ function generatePRCommentSnippet(lens) {
   return snippet;
 }
 
-function updateStatusBar(statusBarItem) {
-  const {lens} = getMaps();
+function updateOverlayStatusBar(item) {
+  const { lens } = getMaps();
   if (lens && lens.lens && lens.lens.seeds) {
     const seedsCount = lens.lens.seeds.length;
-    statusBarItem.text = `$(eye) UF:${seedsCount}`;
-    statusBarItem.tooltip = `Understand-First: ${seedsCount} functions in lens`;
+    item.text = `$(eye) UF:${seedsCount}`;
+    item.tooltip = `Understand-First: ${seedsCount} functions in lens`;
   } else {
-    statusBarItem.text = "$(eye) UF";
-    statusBarItem.tooltip = "Understand-First: Click to toggle overlay";
+    item.text = "$(eye) UF";
+    item.tooltip = "Understand-First: Click to toggle overlay";
   }
 }
 
@@ -1646,7 +1455,7 @@ function analyzeFunction(functionName, filePath) {
 // Panel management
 let understandingPanel = null;
 
-function openUnderstandingPanel() {
+function openUnderstandingPanel(context) {
   if (understandingPanel) {
     understandingPanel.reveal();
     return;

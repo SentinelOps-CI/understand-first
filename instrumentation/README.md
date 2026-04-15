@@ -1,5 +1,7 @@
 # Understand-First Instrumentation & Metrics
 
+This directory is a **standalone** metrics stack with its own `requirements.txt` and `Dockerfile`. For the main `u` CLI and analysis features, install from the **repository root** (`uv sync --all-extras` or `pip install -e ".[dev,examples]"`).
+
 Comprehensive instrumentation and metrics collection for the Understand-First platform, including anonymous opt-in event tracking, derived KPIs, TTU/TTFSC measurement, and performance monitoring.
 
 ## Features

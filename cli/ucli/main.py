@@ -5,6 +5,21 @@ import pathlib
 import subprocess
 import sys
 import shutil
+
+# The package is `cli.ucli` but modules use absolute `ucli.*` imports; ensure `cli/`
+# is on sys.path so those resolve when the app is run from an installed console script.
+_cli_parent = pathlib.Path(__file__).resolve().parent.parent
+if str(_cli_parent) not in sys.path:
+    sys.path.insert(0, str(_cli_parent))
+
+if sys.platform == "win32":
+    for _stream in (sys.stdout, sys.stderr):
+        reconf = getattr(_stream, "reconfigure", None)
+        if callable(reconf):
+            try:
+                reconf(encoding="utf-8")
+            except Exception:
+                pass
 import socket
 import typer
 from rich import print
@@ -19,7 +34,7 @@ from rich.progress import (
 )
 from rich.panel import Panel
 from rich.table import Table
-from rich.prompt import Prompt, Confirm, IntPrompt, Choice
+from rich.prompt import Prompt, Confirm, IntPrompt
 from rich.layout import Layout
 from rich.live import Live
 from rich.text import Text
@@ -199,7 +214,7 @@ def init(
             project_description = Prompt.ask("Project description", default="")
 
             # Language selection
-            language = Choice.ask(
+            language = Prompt.ask(
                 "Primary programming language",
                 choices=["python", "javascript", "typescript", "java", "go", "rust", "other"],
                 default="python",
@@ -357,7 +372,11 @@ def scan(
             raise typer.Exit(1)
 
         # Check if it's a valid code directory
-        if not any(p.glob("*.py")) and not any(p.glob("*.js")) and not any(p.glob("*.ts")):
+        if (
+            not any(p.glob("**/*.py"))
+            and not any(p.glob("**/*.js"))
+            and not any(p.glob("**/*.ts"))
+        ):
             console.print(
                 f"[yellow]⚠️  Warning:[/yellow] No supported source files found in '{path}'"
             )
@@ -741,7 +760,9 @@ def diff(
 
         try:
             os.makedirs(pathlib.Path(o).parent, exist_ok=True)
-            lens_delta_svg(old_map, new_map, o)
+            svg = lens_delta_svg(old_map, new_map)
+            with open(o, "w", encoding="utf-8") as df:
+                df.write(svg)
             console.print(f"[green]✅ Delta visualization written to {o}[/green]")
         except Exception as e:
             console.print(f"[yellow]⚠️  Could not generate visualization: {e}[/yellow]")
@@ -3214,7 +3235,9 @@ def diff(
                     json.dump(delta_data, f, indent=2)
             else:
                 # Generate SVG visualization
-                lens_delta_svg(old_lens, new_lens, o)
+                svg = lens_delta_svg(old_lens, new_lens)
+                with open(o, "w", encoding="utf-8") as df:
+                    df.write(svg)
 
             progress.update(diff_task, advance=20)
 

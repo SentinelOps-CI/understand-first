@@ -8,9 +8,11 @@ import yaml
 import re as _re
 
 try:
-    from openapi_schema_validator import validate as validate_openapi
+    from openapi_schema_validator.validators import OAS30Validator
+    from openapi_schema_validator.validators import check_openapi_schema
 except Exception:  # pragma: no cover
-    validate_openapi = None  # type: ignore
+    OAS30Validator = None  # type: ignore
+    check_openapi_schema = None  # type: ignore
 
 
 def _read(path: str) -> str:
@@ -51,9 +53,10 @@ def init_contracts(root: str) -> str:
 def _exists_module_func(module_path: str, fn: str) -> bool:
     try:
         spec = importlib.util.spec_from_file_location("_mod", module_path)
-        mod = importlib.util.module_from_spec(spec)  # type: ignore
-        assert spec.loader is not None
-        spec.loader.exec_module(mod)  # type: ignore
+        if spec is None or spec.loader is None:
+            return False
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
         return hasattr(mod, fn)
     except Exception:
         return False
@@ -209,8 +212,8 @@ def from_openapi(openapi_path: str) -> str:
         return ""
     # optional validation (non-fatal)
     try:
-        if validate_openapi is not None:
-            validate_openapi(data)
+        if check_openapi_schema is not None and OAS30Validator is not None and isinstance(data, dict):
+            check_openapi_schema(OAS30Validator, data)
     except Exception:
         pass
     paths = (data or {}).get("paths", {}) or {}

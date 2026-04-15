@@ -1,66 +1,53 @@
-# Multi-stage build for understand-first
-FROM python:3.11-slim as builder
+# Multi-stage build for understand-first (wheel-only runtime)
+FROM python:3.11-slim AS builder
 
-# Install build dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    git \
     && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
 WORKDIR /app
 
-# Copy requirements and install Python dependencies
-COPY pyproject.toml ./
-RUN pip install --no-cache-dir build setuptools wheel
-RUN pip install --no-cache-dir -e .
+ENV PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONDONTWRITEBYTECODE=1
 
-# Copy source code
-COPY . .
+COPY pyproject.toml README.md ./
+COPY cli ./cli/
 
-# Build the package
-RUN python -m build
+RUN python -m pip install --upgrade pip build setuptools wheel \
+    && python -m pip install --no-cache-dir -e . \
+    && python -m build
 
-# Production stage
 FROM python:3.11-slim
 
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user
 RUN useradd --create-home --shell /bin/bash understand-first
 
-# Set working directory
 WORKDIR /app
 
-# Copy built package from builder stage
-COPY --from=builder /app/dist/*.whl ./
-RUN pip install --no-cache-dir *.whl
+ENV PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
 
-# Copy examples and assets
+COPY --from=builder /app/dist/*.whl ./
+RUN python -m pip install --no-cache-dir ./*.whl && rm -f ./*.whl
+
 COPY examples/ ./examples/
 COPY assets/ ./assets/
 
-# Change ownership to non-root user
 RUN chown -R understand-first:understand-first /app
 
-# Switch to non-root user
 USER understand-first
 
-# Set environment variables
-ENV PYTHONPATH=/app
-ENV PYTHONUNBUFFERED=1
-
-# Expose ports for web services
 EXPOSE 8000 50051
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD u doctor || exit 1
 
-# Default command
 ENTRYPOINT ["u"]
 CMD ["--help"]

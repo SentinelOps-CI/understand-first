@@ -5,9 +5,10 @@ import ast
 
 def run_callable_with_trace(pyfile: str, func_name: str, a=None, b=None) -> Dict[str, Any]:
     spec = importlib.util.spec_from_file_location("_mod", pyfile)
-    mod = importlib.util.module_from_spec(spec)  # type: ignore
-    assert spec.loader is not None
-    spec.loader.exec_module(mod)  # type: ignore
+    if spec is None or spec.loader is None:
+        return {"error": "could not load module", "events": []}
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
 
     target = getattr(mod, func_name)
     events: List[Dict[str, Any]] = []

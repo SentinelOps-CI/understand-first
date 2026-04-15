@@ -72,8 +72,11 @@ install_from_source() {
     
     # Install in development mode
     print_status "Installing in development mode..."
-    pip install -e .
-    pip install -r requirements.txt
+    if command -v uv >/dev/null 2>&1; then
+        uv sync --all-extras
+    else
+        pip install -e ".[dev,examples]"
+    fi
     
     print_success "Understand-First installed from source!"
 }

@@ -4,8 +4,10 @@ This guide covers installation, configuration, and the end‑to‑end workflow u
 
 ## Install
 ```bash
-# from repo root
-pip install -e cli
+# from repo root (recommended; matches CI)
+uv sync --all-extras
+# or
+pip install -e ".[dev,examples]"
 # or from PyPI (if published)
 # pip install understand-first
 ```
@@ -158,22 +160,23 @@ After generating `maps/repo.json` and a lens, open the repository in VS Code:
   - Understand-First: Open Glossary
 
 ## CI integration
-The project includes a GitHub Actions workflow (`.github/workflows/ci.yml`) that automatically:
-- Lints code with `ruff`
-- Generates contracts from OpenAPI and protobuf specs
-- Composes contracts into a unified file
-- Generates Lean verification stubs
-- Verifies Lean coverage for all contract functions
-- Runs the test suite
+The project includes a GitHub Actions workflow (`.github/workflows/ci.yml`) that runs:
+- **Tests** on Python 3.9–3.13 (`uv run pytest` with coverage)
+- **Lint**: Ruff (check + format check) and Pyright on `cli/` and `tests/`
+- **VS Code extension**: `npm ci`, `npm run lint`, and `vsce package` under `ide/vscode/understand-first/`
+- **React example**: Vite production build under `examples/react_dashboard/`
+- **SBOM**: CycloneDX from locked `requirements.txt` (after a successful lint job)
+- **Wheel build** and optional Docker publish (see workflow for conditions)
 
-### Manual CI steps
+Contract generation and Lean steps are available as CLI commands but are not all run as separate CI stages; see the workflow file for the exact jobs.
+
+### Manual CI-aligned checks
 ```bash
-# Run the same checks locally
-ruff check .
-u contracts compose -i contracts/contracts_from_openapi.yaml -i contracts/contracts_from_proto.yaml -o contracts/contracts.yaml
-u contracts lean-stubs contracts/contracts.yaml -o contracts/lean/
-u contracts verify-lean contracts/contracts.yaml -l contracts/lean
-pytest -q
+# After `uv sync --all-extras`
+uv run ruff check cli tests
+uv run ruff format --check cli tests
+uv run pyright
+uv run pytest -q
 ```
 
 ### PR gates

@@ -4,7 +4,21 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 def run(cmd, cwd=None, check=True):
     print('>', cmd)
-    return subprocess.run(cmd, cwd=cwd or ROOT, shell=True, check=check, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    env = os.environ.copy()
+    env.setdefault("PYTHONUTF8", "1")
+    env.setdefault("PYTHONIOENCODING", "utf-8")
+    return subprocess.run(
+        cmd,
+        cwd=cwd or ROOT,
+        shell=True,
+        check=check,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        env=env,
+    )
 
 def test_scan_and_lens():
     run('u scan examples/python_toy -o maps/repo.json')

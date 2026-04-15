@@ -8,8 +8,8 @@ pipelines:
           caches:
             - pip
           script:
-            - python -m pip install -r requirements.txt
-            - python -m pip install -e cli
+            - python -m pip install --upgrade pip
+            - python -m pip install -e ".[dev,examples]"
             - u scan examples/python_toy -o maps/repo.json
             - u lens preset bug --map maps/repo.json -o maps/lens.json || true
             - u trace module examples/app/hot_path.py run_hot_path -o traces/tour.json || true
@@ -23,7 +23,8 @@ pipelines:
       - step:
           name: Tour gate
           script:
-            - python -m pip install -r requirements.txt -e cli
+            - python -m pip install --upgrade pip
+            - python -m pip install -e ".[dev,examples]"
             - u tour_run maps/lens_merged.json -f fixtures
       - step:
           name: Comment MR
@@ -32,4 +33,3 @@ pipelines:
               curl -X POST -H "Content-Type: application/json" -u "$BITBUCKET_USERNAME:$BITBUCKET_APP_PASSWORD" \
                 -d '{"content": {"raw": "See artifacts: tours/PR.md, maps/delta.svg"}}' \
                 "https://api.bitbucket.org/2.0/repositories/$BITBUCKET_REPO_FULL_NAME/pullrequests/$BITBUCKET_PR_ID/comments" || true
-

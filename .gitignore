@@ -128,11 +128,16 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
+# Node
+node_modules/
+
 # Understand-First specific
 maps/
 tours/
 traces/
 contracts/lean/
+# Opt-in metrics (local only; never commit event logs)
+metrics/
 *.json
 !schemas/*.json
 !examples/**/*.json

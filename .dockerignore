@@ -1,81 +1,33 @@
-# Git
 .git
+.github
 .gitignore
+.gitattributes
 
-# Python
-__pycache__
-*.pyc
-*.pyo
-*.pyd
-.Python
-env
-pip-log.txt
-pip-delete-this-directory.txt
-.tox
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.log
-.git
-.mypy_cache
-.pytest_cache
-.hypothesis
-
-# Virtual environments
-_venv
-venv
-ENV
-env
 .venv
+venv
+__pycache__
+*.py[cod]
+.pytest_cache
+.mypy_cache
+.ruff_cache
+htmlcov
+.coverage
+coverage.xml
+*.egg-info
 
-# IDE
+**/node_modules
+examples/react_dashboard/dist
+
 .vscode
 .idea
 *.swp
-*.swo
-*~
-
-# OS
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
 
-# Build artifacts
-build/
-dist/
-*.egg-info/
-*.egg
+maps
+tours
+traces
+dist
+build
 
-# Documentation
-docs/
-*.md
-!README.md
-
-# Tests
-tests/
-test_*
-*_test.py
-
-# CI/CD
-.github/
-.gitlab-ci.yml
-.travis.yml
-.circleci/
-
-# Temporary files
-*.tmp
-*.temp
-out.txt
-
-# Local development
-maps/
-tours/
-contracts/
-traces/
+tests
+.hypothesis

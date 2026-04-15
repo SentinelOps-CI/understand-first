@@ -30,7 +30,7 @@
     "eslint-plugin-react-hooks": "^4.6.0",
     "prettier": "^3.0.0",
     "typescript": "^5.1.6",
-    "vite": "^5.4.11"
+    "vite": "^8.0.8"
   },
   "browserslist": {
     "production": [">0.2%", "not dead", "not op_mini all"],

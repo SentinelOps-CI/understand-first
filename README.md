@@ -1,11 +1,5 @@
-# Understand-First
-
 <p align="center">
   <img src="assets/banner.svg" alt="Understand-First — Generate understanding, not just code" width="100%" />
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License MIT" />
 </p>
 
 > **Generate understanding, not just code.** Understand-First helps teams shrink **Time To Understanding (TTU)** and **Time To First Safe Change (TTFSC)** with repository maps, runtime traces, guided tours, interface contracts, and PR-friendly guardrails.

@@ -1,14 +1,10 @@
-<p align="center">
-  # Understand-First
-</p>
+# Understand-First
 
 <p align="center">
   <img src="assets/banner.svg" alt="Understand-First — Generate understanding, not just code" width="100%" />
 </p>
 
 <p align="center">
-  <a href="https://pypi.org/project/understand-first/"><img src="https://img.shields.io/pypi/v/understand-first.svg" alt="PyPI version" /></a>
-  <a href="https://pypi.org/project/understand-first/"><img src="https://img.shields.io/pypi/pyversions/understand-first.svg" alt="Python versions" /></a>
   <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License MIT" />
 </p>
 

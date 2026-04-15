@@ -89,7 +89,7 @@ jobs:
           echo "Policy check exit code: $POLICY_EXIT_CODE"
 
       - name: Upload analysis artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v7
         with:
           name: understand-first-analysis
           path: |

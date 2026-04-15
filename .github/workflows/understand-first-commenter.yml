@@ -190,7 +190,7 @@ jobs:
           "
 
       - name: Upload analysis artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v7
         with:
           name: understand-first-pr-analysis-${{ github.event.number || github.event.inputs.pr_number }}
           path: |

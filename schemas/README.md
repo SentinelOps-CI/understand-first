@@ -76,4 +76,4 @@ When adding new fields to data formats:
 2. Add examples in the schema description
 3. Update this README if needed
 4. Test validation with existing data files
-5. Document breaking changes in CHANGELOG.md
+5. Document breaking changes in release notes

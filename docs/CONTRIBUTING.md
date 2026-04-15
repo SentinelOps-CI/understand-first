@@ -46,8 +46,8 @@ This project follows a code of conduct that we expect all contributors to follow
 
 ### Prerequisites
 
-- Python 3.10+
-- Node.js 16+ (for React examples)
+- Python 3.9+ (matches `requires-python` in `pyproject.toml`)
+- Node.js 18+ (React example and tooling; CI uses Node 20 for the Vite example and VS Code extension)
 - Git
 - Basic understanding of Python, web development, and software engineering practices
 
@@ -66,15 +66,33 @@ This project follows a code of conduct that we expect all contributors to follow
    ```
 
 3. **Install Dependencies**
+
+   Recommended (matches CI and `uv.lock`):
+
    ```bash
-   pip install -r requirements.txt
-   pip install -e .
+   pip install uv
+   uv sync --all-extras
    ```
+
+   Or with pip only:
+
+   ```bash
+   pip install -e ".[dev,examples]"
+   ```
+
+   The root `requirements.txt` is exported from the lock file for tools that need a flat list; prefer `uv sync` or the editable install above.
 
 4. **Verify Installation**
    ```bash
-   python u.py --help
-   python u.py doctor
+   u --help
+   u doctor
+   ```
+
+   Optional: run checks before pushing:
+
+   ```bash
+   pre-commit install
+   pre-commit run --all-files
    ```
 
 ## Project Structure
@@ -105,8 +123,11 @@ understand-first/
 │   └── ...                 # Other templates
 ├── docs/                   # Documentation
 ├── tests/                  # Test suite
-└── u.py                    # Main entry point
+├── pyproject.toml          # Package metadata, scripts (`u`, `understand-first`), optional-dependencies
+└── uv.lock                 # Locked dependencies (used with `uv sync --frozen` in CI)
 ```
+
+The `u` command is provided by setuptools entry points after an editable install (`pip install -e ".[dev,examples]"` or `uv sync --all-extras`); the implementation lives under `cli/ucli/main.py`.
 
 ## Contributing Guidelines
 
@@ -163,8 +184,8 @@ We welcome contributions in the following areas:
 
 3. **Test Your Changes**
    ```bash
-   python u.py doctor
-   python -m pytest tests/
+   u doctor
+   uv run pytest
    ```
 
 4. **Commit Changes**
@@ -180,7 +201,7 @@ We welcome contributions in the following areas:
 
 ### Code Style
 
-- **Python**: Follow PEP 8 guidelines
+- **Python**: Follow PEP 8; CI runs Ruff (lint + format check) and Pyright (`uv run ruff check`, `uv run ruff format --check`, `uv run pyright`)
 - **JavaScript**: Use modern ES6+ syntax
 - **HTML/CSS**: Use semantic HTML and modern CSS
 - **Documentation**: Use clear, concise language
@@ -226,7 +247,7 @@ docs(readme): update installation instructions
 2. **Update Documentation**
    - Update README if needed
    - Add/update docstrings
-   - Update CHANGELOG.md
+   - Update release notes when cutting a release
 
 3. **Check Code Quality**
    - Follow code style guidelines
@@ -253,7 +274,7 @@ docs(readme): update installation instructions
 4. **Documentation**
    - Update relevant documentation
    - Add examples if applicable
-   - Update CHANGELOG.md
+   - Update release notes when cutting a release
 
 ### Review Process
 
@@ -371,17 +392,17 @@ When requesting features, please include:
 ### Running Tests
 
 ```bash
-# Run all tests
-python -m pytest
+# Run all tests (after uv sync or pip install -e ".[dev,examples]")
+uv run pytest
 
 # Run specific test file
-python -m pytest tests/test_analyzer.py
+uv run pytest tests/test_analyzer.py
 
-# Run with coverage
-python -m pytest --cov=cli
+# Run with coverage (matches CI)
+uv run pytest --cov=cli --cov-report=term
 
 # Run with verbose output
-python -m pytest -v
+uv run pytest -v
 ```
 
 ### Writing Tests
@@ -414,7 +435,7 @@ We use [Semantic Versioning](https://semver.org/):
 
 1. **Update Version**
    - Update version in `__init__.py`
-   - Update CHANGELOG.md
+   - Update release notes when cutting a release
    - Update README.md if needed
 
 2. **Create Release Branch**

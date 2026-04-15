@@ -1,4 +1,6 @@
-# Understand-First
+<p align="center">
+  # Understand-First
+</p>
 
 <p align="center">
   <img src="assets/banner.svg" alt="Understand-First — Generate understanding, not just code" width="100%" />

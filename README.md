@@ -1,5 +1,18 @@
 <p align="center">
-  <img src="assets/banner.svg" alt="Understand-First — Generate understanding, not just code" width="100%" />
+
+<pre>
+##############################################################################################
+#                                                                                            #
+#       _   _           _               _                  _   _____ _          _            #
+#      | | | |_ __   __| | ___ _ __ ___| |_ __ _ _ __   __| | |  ___(_)_ __ ___| |_          #
+#      | | | | '_ \ / _` |/ _ \ '__/ __| __/ _` | '_ \ / _` | | |_  | | '__/ __| __|         #
+#      | |_| | | | | (_| |  __/ |  \__ \ || (_| | | | | (_| | |  _| | | |  \__ \ |_          #
+#       \___/|_| |_|\__,_|\___|_|  |___/\__\__,_|_| |_|\__,_| |_|   |_|_|  |___/\__|         #
+#                                                                                            #
+#                                                                                            #
+##############################################################################################
+</pre>
+  
 </p>
 
 > **Generate understanding, not just code.** Understand-First helps teams shrink **Time To Understanding (TTU)** and **Time To First Safe Change (TTFSC)** with repository maps, runtime traces, guided tours, interface contracts, and PR-friendly guardrails.

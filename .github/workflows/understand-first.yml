@@ -166,7 +166,7 @@ jobs:
           git stash pop
 
       - name: Upload Analysis Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v7
         with:
           name: understand-first-analysis
           path: |
@@ -178,7 +178,7 @@ jobs:
 
       - name: Upload Code Map Delta
         if: steps.diff.outputs.changes_detected == 'true'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v7
         with:
           name: code-map-delta
           path: maps/delta.svg
@@ -186,7 +186,7 @@ jobs:
 
       - name: Upload Understanding Tour
         if: steps.lens.outputs.lens_created == 'true'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v7
         with:
           name: understanding-tour
           path: tours/pr-tour.md
@@ -194,7 +194,7 @@ jobs:
 
       - name: Upload Context Debt Dashboard
         if: steps.lens.outputs.lens_created == 'true'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v7
         with:
           name: context-debt-dashboard
           path: context-debt-dashboard.html

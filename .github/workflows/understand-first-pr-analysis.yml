@@ -101,7 +101,7 @@ jobs:
             policy-report.json
 
       - name: Post PR comment
-        uses: actions/github-script@v6
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');
@@ -173,7 +173,7 @@ jobs:
             }
 
       - name: Create Check Run
-        uses: actions/github-script@v6
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');
@@ -224,7 +224,7 @@ jobs:
 
       - name: Set commit status
         if: always()
-        uses: actions/github-script@v6
+        uses: actions/github-script@v9
         with:
           script: |
             const policyExitCode = ${{ steps.policy-check.outputs.policy_exit_code }};

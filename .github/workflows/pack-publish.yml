@@ -14,18 +14,25 @@ jobs:
       - run: |
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev,examples]"
-          u pack --publish
+          u pack publish
       - name: Prepare site
         run: |
-          mkdir -p site
+          mkdir -p site/docs
           echo "<h1>Understanding Pack</h1><ul>" > site/index.html
           for f in docs/glossary.md docs/understanding-dashboard.md; do
-            test -f "$f" && echo "<li><a href='/$f'>$f</a></li>" >> site/index.html
+            if test -f "$f"; then
+              cp "$f" "site/$f"
+              echo "<li><a href='/$f'>$f</a></li>" >> site/index.html
+            fi
           done
-          test -f maps/delta.svg && cp maps/delta.svg site/delta.svg && echo "<li><a href='/site/delta.svg'>delta.svg</a></li>" >> site/index.html || true
+          # Optional nicety: delta.svg may be absent on pack-only publishes.
+          if test -f maps/delta.svg; then
+            cp maps/delta.svg site/delta.svg
+            echo "<li><a href='/delta.svg'>delta.svg</a></li>" >> site/index.html
+          fi
           echo "</ul>" >> site/index.html
       - uses: actions/upload-pages-artifact@v3
-        with: { path: "." }
+        with: { path: "site" }
   deploy:
     needs: build
     permissions:

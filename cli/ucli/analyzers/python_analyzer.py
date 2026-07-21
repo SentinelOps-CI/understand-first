@@ -282,6 +282,42 @@ def _resolve_relative_module(file_path: pathlib.Path, module: str | None, level:
     return ".".join(base_parts) if base_parts else None
 
 
+def _is_type_checking_expr(node: ast.AST) -> bool:
+    """True for ``TYPE_CHECKING`` / ``typing.TYPE_CHECKING`` (and extensions)."""
+    if isinstance(node, ast.Name) and node.id == "TYPE_CHECKING":
+        return True
+    if isinstance(node, ast.Attribute) and node.attr == "TYPE_CHECKING":
+        return True
+    return False
+
+
+def _record_import_node(
+    node: ast.AST,
+    file_path: pathlib.Path,
+    aliases: dict[str, str],
+) -> None:
+    """Record one Import / ImportFrom into ``aliases`` (mutates in place)."""
+    if isinstance(node, ast.ImportFrom):
+        if node.level and node.level > 0:
+            base = _resolve_relative_module(file_path, node.module, node.level)
+            if not base:
+                return
+        elif node.module is None:
+            return
+        else:
+            base = node.module
+        for alias in node.names:
+            local = alias.asname or alias.name
+            if alias.name == "*":
+                continue
+            # from pkg.mod import func -> local name maps to pkg.mod:func candidate key
+            aliases[local] = f"{base}:{alias.name}"
+    elif isinstance(node, ast.Import):
+        for alias in node.names:
+            local = alias.asname or alias.name.split(".")[-1]
+            aliases[local] = alias.name
+
+
 def _collect_import_aliases(tree: ast.AST, file_path: pathlib.Path) -> dict[str, str]:
     """Map local alias -> module path fragment for high-confidence import resolution.
 
@@ -294,29 +330,22 @@ def _collect_import_aliases(tree: ast.AST, file_path: pathlib.Path) -> dict[str,
     symbol imports (``from mod import fn``) from module imports
     (``from pkg import mod`` → treat ``mod`` as submodule ``pkg.mod`` when a
     scanned module uniquely matches).
+
+    Wave 30: also records imports under ``if TYPE_CHECKING:`` /
+    ``if typing.TYPE_CHECKING:`` bodies (string annotations commonly pair with
+    these). ``if not TYPE_CHECKING:`` bodies are ignored.
     """
     aliases: dict[str, str] = {}
 
-    for node in getattr(tree, "body", []) or []:
-        if isinstance(node, ast.ImportFrom):
-            if node.level and node.level > 0:
-                base = _resolve_relative_module(file_path, node.module, node.level)
-                if not base:
-                    continue
-            elif node.module is None:
-                continue
-            else:
-                base = node.module
-            for alias in node.names:
-                local = alias.asname or alias.name
-                if alias.name == "*":
-                    continue
-                # from pkg.mod import func -> local name maps to pkg.mod:func candidate key
-                aliases[local] = f"{base}:{alias.name}"
-        elif isinstance(node, ast.Import):
-            for alias in node.names:
-                local = alias.asname or alias.name.split(".")[-1]
-                aliases[local] = alias.name
+    def walk_stmts(stmts: list[ast.stmt]) -> None:
+        for node in stmts:
+            if isinstance(node, (ast.Import, ast.ImportFrom)):
+                _record_import_node(node, file_path, aliases)
+            elif isinstance(node, ast.If) and _is_type_checking_expr(node.test):
+                walk_stmts(list(node.body))
+            # Do not walk unrelated If/try bodies — runtime-only imports stay opaque.
+
+    walk_stmts(list(getattr(tree, "body", []) or []))
     return aliases
 
 
@@ -358,6 +387,11 @@ _NON_CLASS_TYPE_NAMES = frozenset(
         "ClassVar",
         "Final",
         "Self",
+        "Annotated",
+        "Optional",
+        "Union",
+        "Required",
+        "NotRequired",
         "str",
         "int",
         "float",
@@ -371,18 +405,83 @@ _NON_CLASS_TYPE_NAMES = frozenset(
     }
 )
 
+# Subscript wrappers that unwrap to a single concrete type (Wave 30).
+_TYPE_UNWRAP_SINGLE = frozenset({"Annotated", "Final", "ClassVar", "Required", "NotRequired"})
+_TYPE_UNWRAP_OPTIONAL_UNION = frozenset({"Optional", "Union"})
+_TYPE_UNWRAP_ALL = _TYPE_UNWRAP_SINGLE | _TYPE_UNWRAP_OPTIONAL_UNION
+_TYPING_MODULES = frozenset({"typing", "typing_extensions"})
 
-def _simple_type_name(node: ast.AST | None) -> str | None:
+
+def _ast_from_annotation_string(text: str) -> ast.AST | None:
+    """Parse a quoted annotation string into an expression AST, or None."""
+    s = text.strip()
+    if not s:
+        return None
+    try:
+        return ast.parse(s, mode="eval").body
+    except SyntaxError:
+        return None
+
+
+def _typing_wrapper_kind(
+    node: ast.AST | None,
+    aliases: dict[str, str] | None = None,
+) -> str | None:
+    """Return Optional/Union/Annotated/... when ``node`` is a typing wrapper.
+
+    Recognizes bare names, ``typing.X`` / ``typing_extensions.X``, and
+    ``from typing import Optional as Opt`` aliases (import-gated to typing*).
+    """
+    if node is None:
+        return None
+    if isinstance(node, ast.Name):
+        name = node.id
+        if aliases:
+            binding = aliases.get(name)
+            if binding is not None and ":" in binding:
+                mod, imported = binding.rsplit(":", 1)
+                if imported in _TYPE_UNWRAP_ALL and (not mod or mod in _TYPING_MODULES):
+                    return imported
+        if name in _TYPE_UNWRAP_ALL:
+            return name
+        return None
+    if isinstance(node, ast.Attribute) and node.attr in _TYPE_UNWRAP_ALL:
+        # Only typing / typing_extensions (or an alias to those modules).
+        root = node.value
+        if isinstance(root, ast.Name):
+            if root.id in _TYPING_MODULES:
+                return node.attr
+            if aliases and aliases.get(root.id) in _TYPING_MODULES:
+                return node.attr
+            return None
+        if isinstance(root, ast.Attribute) and root.attr in _TYPING_MODULES:
+            return node.attr
+        return None
+    return None
+
+
+def _simple_type_name(
+    node: ast.AST | None,
+    aliases: dict[str, str] | None = None,
+) -> str | None:
     """High-confidence concrete class name from an annotation or constructor call.
 
-    Accepts bare ``Foo``, ``pkg.Foo``, and ``Optional[Foo]`` / ``Union[Foo, None]`` /
-    ``Foo | None`` when exactly one non-None concrete name remains. Rejects
-    multi-class unions, containers (``list[Foo]``), ``TypedDict`` / ``Protocol`` /
+    Accepts bare ``Foo``, ``pkg.Foo``, quoted ``\"Foo\"`` / ``\"Foo | None\"``,
+    and wrappers ``Optional`` / ``Union`` / ``Annotated`` / ``Final`` /
+    ``ClassVar`` (including ``typing.X`` and ``from typing import X as Y``)
+    when exactly one non-None concrete name remains. Rejects multi-class
+    unions, containers (``list[Foo]``), ``TypedDict`` / ``Protocol`` /
     builtins / ``Any`` — never invents a type.
     """
     if node is None:
         return None
-    if isinstance(node, ast.Constant) and node.value is None:
+    if isinstance(node, ast.Constant):
+        if node.value is None:
+            return None
+        if isinstance(node.value, str):
+            inner = _ast_from_annotation_string(node.value)
+            # Recurse without re-entering string mode on nested metadata.
+            return _simple_type_name(inner, aliases) if inner is not None else None
         return None
     if isinstance(node, ast.Name):
         if node.id in _NON_CLASS_TYPE_NAMES:
@@ -394,27 +493,29 @@ def _simple_type_name(node: ast.AST | None) -> str | None:
             return None
         return node.attr
     if isinstance(node, ast.Subscript):
-        # Optional[Foo], Union[Foo, None], typing.Optional[Foo] — single concrete
-        # class only. Skip TypedDict[...] / list[Foo] / dict[K, V] containers.
-        outer = _simple_type_name(node.value)
-        if outer in {"Optional", "Union"}:
-            return _unique_concrete_type(node.slice)
+        kind = _typing_wrapper_kind(node.value, aliases)
+        if kind in _TYPE_UNWRAP_OPTIONAL_UNION or kind in _TYPE_UNWRAP_SINGLE:
+            return _unique_concrete_type(node.slice, aliases)
         return None
     if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
-        return _unique_concrete_type(node)
+        return _unique_concrete_type(node, aliases)
     if isinstance(node, ast.Tuple):
-        return _unique_concrete_type(node)
+        return _unique_concrete_type(node, aliases)
     return None
 
 
-def _unique_concrete_type(node: ast.AST | None) -> str | None:
+def _unique_concrete_type(
+    node: ast.AST | None,
+    aliases: dict[str, str] | None = None,
+) -> str | None:
     """Return a class name only when exactly one concrete type appears."""
     names: list[str] = []
 
     def walk(n: ast.AST | None) -> None:
         if n is None:
             return
-        if isinstance(n, ast.Constant) and n.value is None:
+        # Skip None and Annotated metadata string constants (not types).
+        if isinstance(n, ast.Constant):
             return
         if isinstance(n, ast.BinOp) and isinstance(n.op, ast.BitOr):
             walk(n.left)
@@ -424,8 +525,14 @@ def _unique_concrete_type(node: ast.AST | None) -> str | None:
             for elt in n.elts:
                 walk(elt)
             return
-        name = _simple_type_name(n)
-        if name and name not in {"Optional", "Union"}:
+        # Nested Optional/Union/Annotated — unwrap rather than treating as class.
+        if isinstance(n, ast.Subscript):
+            kind = _typing_wrapper_kind(n.value, aliases)
+            if kind in _TYPE_UNWRAP_ALL:
+                walk(n.slice)
+                return
+        name = _simple_type_name(n, aliases)
+        if name and name not in _TYPE_UNWRAP_ALL:
             names.append(name)
 
     walk(node)
@@ -546,11 +653,15 @@ def _type_ref_with_origin(
     """``(ClassName, origin_mod|None)`` from an annotation or constructor target.
 
     Origin is a dotted module when the type is import-aliased (``Foo`` /
-    ``F`` / ``models.Foo``). Optional/Union wrappers keep a single concrete
-    name; multi-class forms return ``(None, None)``.
+    ``F`` / ``models.Foo``). Optional/Union/Annotated/Final/ClassVar wrappers
+    keep a single concrete name; multi-class forms return ``(None, None)``.
+    Quoted annotations are parsed and re-entered.
     """
     if node is None:
         return None, None
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        inner = _ast_from_annotation_string(node.value)
+        return _type_ref_with_origin(inner, aliases) if inner is not None else (None, None)
     if isinstance(node, ast.Call):
         # CapWords constructor — origin from the callee expression.
         if _constructor_type_name(node) is None:
@@ -563,24 +674,27 @@ def _type_ref_with_origin(
     if isinstance(node, ast.Attribute):
         if node.attr in _NON_CLASS_TYPE_NAMES:
             return None, None
+        # typing.Optional is a wrapper, not a class — handled via Subscript.
+        if _typing_wrapper_kind(node, aliases):
+            return None, None
         mod = _module_path_for_attr_value(node.value, aliases)
         return node.attr, mod
     if isinstance(node, ast.Subscript):
-        outer = _simple_type_name(node.value)
-        if outer in {"Optional", "Union"}:
-            inner = _unique_concrete_type(node.slice)
+        kind = _typing_wrapper_kind(node.value, aliases)
+        if kind in _TYPE_UNWRAP_ALL:
+            inner = _unique_concrete_type(node.slice, aliases)
             if not inner:
                 return None, None
             # Prefer Attribute/Name origin inside the slice when unique.
             return _type_ref_with_origin_for_name(node.slice, inner, aliases)
         return None, None
     if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
-        inner = _unique_concrete_type(node)
+        inner = _unique_concrete_type(node, aliases)
         if not inner:
             return None, None
         return _type_ref_with_origin_for_name(node, inner, aliases)
     if isinstance(node, ast.Tuple):
-        inner = _unique_concrete_type(node)
+        inner = _unique_concrete_type(node, aliases)
         if not inner:
             return None, None
         return _type_ref_with_origin_for_name(node, inner, aliases)
@@ -598,7 +712,8 @@ def _type_ref_with_origin_for_name(
     def walk(n: ast.AST | None) -> None:
         if n is None:
             return
-        if isinstance(n, ast.Constant) and n.value is None:
+        if isinstance(n, ast.Constant):
+            # Skip None / Annotated metadata strings; quoted types are top-level only.
             return
         if isinstance(n, ast.BinOp) and isinstance(n.op, ast.BitOr):
             walk(n.left)
@@ -614,7 +729,7 @@ def _type_ref_with_origin_for_name(
         if isinstance(n, ast.Attribute) and n.attr == target:
             found.append((n.attr, _module_path_for_attr_value(n.value, aliases)))
             return
-        # Optional[Foo] / Union[...] — descend into subscript slice only.
+        # Optional[Foo] / Union[...] / Annotated[Foo, ...] — descend into slice.
         if isinstance(n, ast.Subscript):
             walk(n.slice)
 
@@ -701,7 +816,7 @@ def _infer_return_type(
         return ann_name, ann_mod
 
     # CapWords ctors + local aliases only (factory chains resolved later).
-    local = _collect_local_types(func_node)
+    local, _local_mods = _collect_local_type_bindings(func_node, aliases)
     found: list[tuple[str | None, str | None]] = []
 
     class ReturnVisitor(ast.NodeVisitor):
@@ -751,17 +866,34 @@ def _infer_return_type(
     return names[0], None
 
 
-def _collect_local_types(
+def _collect_local_type_bindings(
     func_node: ast.FunctionDef | ast.AsyncFunctionDef,
-) -> dict[str, str]:
-    """Map local names → class names from annotations and constructors in scope.
+    import_aliases: dict[str, str] | None = None,
+) -> tuple[dict[str, str], dict[str, str]]:
+    """Map local names → class names (+ optional origin mods) in scope.
 
     Only high-confidence bindings: annotated params/assigns and ``name = Class()``.
-    Later rebinding to another concrete type overwrites; ambiguous/unknown clears.
-    Factory calls (``name = make()``) are recorded separately for return-type
-    propagation at map-build time — they do not invent a class named ``make``.
+    Annotations go through ``_type_ref_with_origin`` so ``Foo as F``, quoted
+    ``\"Foo\"``, ``Annotated`` / ``Final`` / ``Opt[Foo]`` canonicalize with import
+    origin when known. Later rebinding to another concrete type overwrites;
+    ambiguous/unknown clears. Factory calls (``name = make()``) are recorded
+    separately for return-type propagation — they do not invent a class
+    named ``make``.
     """
+    aliases = import_aliases or {}
     types: dict[str, str] = {}
+    mods: dict[str, str] = {}
+
+    def _bind(name: str, class_name: str | None, origin: str | None) -> None:
+        if class_name:
+            types[name] = class_name
+            if origin:
+                mods[name] = origin
+            else:
+                mods.pop(name, None)
+        else:
+            types.pop(name, None)
+            mods.pop(name, None)
 
     # Parameter annotations (skip self/cls without annotation).
     for arg in [
@@ -771,9 +903,8 @@ def _collect_local_types(
     ]:
         if arg.arg in {"self", "cls"}:
             continue
-        t = _simple_type_name(arg.annotation)
-        if t:
-            types[arg.arg] = t
+        t, mod = _type_ref_with_origin(arg.annotation, aliases)
+        _bind(arg.arg, t, mod)
 
     class BindingVisitor(ast.NodeVisitor):
         def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
@@ -790,34 +921,50 @@ def _collect_local_types(
 
         def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
             if isinstance(node.target, ast.Name):
-                ann = _simple_type_name(node.annotation)
+                ann, ann_mod = _type_ref_with_origin(node.annotation, aliases)
                 ctor = _constructor_type_name(node.value) if node.value is not None else None
+                ctor_mod: str | None = None
+                if ctor is not None and node.value is not None:
+                    _, ctor_mod = _type_ref_with_origin(node.value, aliases)
                 factory = _factory_call_callee(node.value) if node.value is not None else None
-                chosen = ctor or ann
-                if chosen:
-                    types[node.target.id] = chosen
+                if ctor:
+                    _bind(node.target.id, ctor, ctor_mod)
+                elif ann:
+                    _bind(node.target.id, ann, ann_mod)
                 elif factory is not None:
                     # Pending return-type bind — clear stale annotation confidence.
-                    types.pop(node.target.id, None)
-                elif node.target.id in types and ann is None and ctor is None:
+                    _bind(node.target.id, None, None)
+                elif node.target.id in types:
                     # Explicit rebinding without a known type — drop confidence.
-                    del types[node.target.id]
+                    _bind(node.target.id, None, None)
             self.generic_visit(node)
 
         def visit_Assign(self, node: ast.Assign) -> None:
             ctor = _constructor_type_name(node.value)
+            ctor_mod: str | None = None
+            if ctor is not None:
+                _, ctor_mod = _type_ref_with_origin(node.value, aliases)
             factory = _factory_call_callee(node.value)
             for target in node.targets:
                 if isinstance(target, ast.Name):
                     if ctor:
-                        types[target.id] = ctor
+                        _bind(target.id, ctor, ctor_mod)
                     elif factory is not None:
-                        types.pop(target.id, None)
+                        _bind(target.id, None, None)
                     elif target.id in types:
-                        del types[target.id]
+                        _bind(target.id, None, None)
             self.generic_visit(node)
 
     BindingVisitor().visit(func_node)
+    return types, mods
+
+
+def _collect_local_types(
+    func_node: ast.FunctionDef | ast.AsyncFunctionDef,
+    import_aliases: dict[str, str] | None = None,
+) -> dict[str, str]:
+    """Map local names → class names (thin wrapper over bindings collector)."""
+    types, _mods = _collect_local_type_bindings(func_node, import_aliases)
     return types
 
 
@@ -945,6 +1092,7 @@ def _parse_file(file_path: pathlib.Path) -> dict[str, Any]:
     # Second pass: local type bindings + enclosing class per function/method.
     enclosing_by_func: dict[str, str | None] = {}
     local_types_by_func: dict[str, dict[str, str]] = {}
+    local_type_mods_by_func: dict[str, dict[str, str]] = {}
     factory_assigns_by_func: dict[str, dict[str, str]] = {}
     return_type_by_func: dict[str, str | None] = {}
     return_type_mod_by_func: dict[str, str | None] = {}
@@ -971,7 +1119,9 @@ def _parse_file(file_path: pathlib.Path) -> dict[str, Any]:
             enclosing_by_func[local] = (
                 ".".join(class_stack2) if class_stack2 and func_depth2 == 0 else None
             )
-            local_types_by_func[local] = _collect_local_types(node)
+            types, mods = _collect_local_type_bindings(node, import_aliases)
+            local_types_by_func[local] = types
+            local_type_mods_by_func[local] = mods
             factory_assigns_by_func[local] = _collect_factory_assigns(node)
             ret_name, ret_mod = _infer_return_type(node, import_aliases)
             return_type_by_func[local] = ret_name
@@ -1021,8 +1171,8 @@ def _parse_file(file_path: pathlib.Path) -> dict[str, Any]:
             "_enclosing_class": enclosing_by_func.get(func),
             # High-confidence local name → class bindings (annotations / ctors).
             "_local_types": local_types_by_func.get(func) or {},
-            # Module path gate for return-propagated bindings (filled later).
-            "_local_type_mods": {},
+            # Module path gate for imported / return-propagated bindings.
+            "_local_type_mods": local_type_mods_by_func.get(func) or {},
             # ``name = factory()`` pending binds for inter-procedural return types.
             "_factory_assigns": factory_assigns_by_func.get(func) or {},
         }

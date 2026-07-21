@@ -283,9 +283,7 @@ def _parse_use_bindings(use_body: str) -> list[dict[str, Any]]:
         if not re.match(r"^[A-Za-z_][\w]*$", name):
             return
         if name == "self" and prefix:
-            bindings.append(
-                {"name": prefix[-1], "imported": prefix[-1], "module": prefix[:-1]}
-            )
+            bindings.append({"name": prefix[-1], "imported": prefix[-1], "module": prefix[:-1]})
             return
         bindings.append({"name": name, "imported": name, "module": list(prefix)})
 
@@ -526,14 +524,10 @@ def _attach_cross_module_edges(
                             for u in uses
                         )
                         if declared or use_mentions:
-                            target_file = _resolve_mod_target_file(
-                                caller_file, mod_name, by_stem
-                            )
+                            target_file = _resolve_mod_target_file(caller_file, mod_name, by_stem)
                             if target_file:
                                 local_map = by_file_short.get(target_file, {})
-                                candidates = list(
-                                    dict.fromkeys(local_map.get(simple, []))
-                                )
+                                candidates = list(dict.fromkeys(local_map.get(simple, [])))
                                 resolved = _pick_unique(candidates, simple, caller_qn)
 
             if resolved is None and "::" not in token:
@@ -547,17 +541,11 @@ def _attach_cross_module_edges(
                         module = module[1:]
                     if module:
                         mod_name = module[-1]
-                        target_file = _resolve_mod_target_file(
-                            caller_file, mod_name, by_stem
-                        )
+                        target_file = _resolve_mod_target_file(caller_file, mod_name, by_stem)
                         if target_file:
                             local_map = by_file_short.get(target_file, {})
-                            candidates = list(
-                                dict.fromkeys(local_map.get(imported, []))
-                            )
-                            resolved = _pick_unique(
-                                candidates, imported, caller_qn
-                            )
+                            candidates = list(dict.fromkeys(local_map.get(imported, [])))
+                            resolved = _pick_unique(candidates, imported, caller_qn)
                 elif not bindings:
                     # Unique among child modules declared via `mod` only.
                     kids = child_files_by_caller.get(caller_file) or set()
@@ -681,9 +669,7 @@ def _build_ast_map(
             stem = str(pathlib.PurePosixPath(display_file).with_suffix(""))
 
         mods_raw = entry.get("mods") or []
-        file_mods[display_file] = (
-            [str(m) for m in mods_raw] if isinstance(mods_raw, list) else []
-        )
+        file_mods[display_file] = [str(m) for m in mods_raw] if isinstance(mods_raw, list) else []
         file_uses[display_file] = _normalize_worker_uses(entry.get("uses"))
 
         locals_map = entry.get("functions") or {}

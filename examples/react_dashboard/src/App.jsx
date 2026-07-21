@@ -360,7 +360,7 @@ const DataTable = ({ data, columns, onRowClick, sortable = true }) => {
 
 // Main dashboard components
 const Dashboard = () => {
-  const { user, theme, addNotification } = useApp();
+  const { theme, addNotification } = useApp();
   const [selectedTimeRange, setSelectedTimeRange] = useState('7d');
   
   // Mock API calls

@@ -43,9 +43,7 @@ def _complexity_kind_label(result: dict[str, Any]) -> str:
     analyzer = str(result.get("analyzer") or "")
     if kind == "mccabe":
         return "McCabe (Python AST)"
-    if kind == "ast-cyclomatic" or (
-        analyzer.endswith("-ast") and analyzer != "python-ast"
-    ):
+    if kind == "ast-cyclomatic" or (analyzer.endswith("-ast") and analyzer != "python-ast"):
         return "ast-cyclomatic (JS/TS/Go structural decision points — not Python McCabe)"
     if kind == "keyword-heuristic" or "best-effort" in analyzer:
         return "keyword-heuristic (JS/TS/Go/Java regex — not structural AST)"

@@ -1,0 +1,13 @@
+{
+  "name": "understand-first-js-ast",
+  "private": true,
+  "version": "0.3.0",
+  "description": "Optional Node worker for JS/TS AST maps (TypeScript compiler API).",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "typescript": "^5.8.2"
+  }
+}

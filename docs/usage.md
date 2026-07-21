@@ -80,7 +80,9 @@ cargo is on PATH; otherwise **best-effort regex** (`rust-best-effort`). Force wi
 `dotnet run` in `cli/ucli/analyzers/csharp_ast` (`csharp-ast`, `ast-cyclomatic`) when
 a .NET SDK is on PATH (`dotnet --list-sdks` non-empty); otherwise **best-effort
 regex** (`csharp-best-effort`). Force with `UF_CSHARP_ANALYZER=regex|ast|auto`.
-JS, Go, Java, Rust, and C# are not Python-parity. Unsupported source extensions
+Rust call edges are same-file unique names plus invent-free `mod`/`use` targets
+inside the scan root (ambiguous edges omitted). JS, Go, Java, Rust, and C# are
+not Python-parity. Unsupported source extensions
 (e.g. `.rb`) are counted as not analyzed — they are never fed to the Python
 analyzer or emitted as empty fake maps.
 2) Create a task lens from seeds (files, functions, or labels)

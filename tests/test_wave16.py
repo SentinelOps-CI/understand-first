@@ -147,10 +147,6 @@ def test_annotate_preserves_unsupported():
 def test_web_demo_only_index_remains():
     demo = pathlib.Path("web_demo")
     names = sorted(p.name for p in demo.iterdir() if p.is_file())
-    if names != ["index.html"]:
-        import pytest
-
-        pytest.skip("web_demo trim lands with surface-honesty PR")
     assert names == ["index.html"]
     html = (demo / "index.html").read_text(encoding="utf-8")
     assert "cytoscape" in html.lower()

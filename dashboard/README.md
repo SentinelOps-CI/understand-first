@@ -2,17 +2,20 @@
 
 This directory is a **standalone** dashboard service with its own `requirements.txt` and `Dockerfile`. For the main Understand-First CLI (`u`), maps, and analysis workflows, install from the **repository root** (`uv sync --all-extras` or `pip install -e ".[dev,examples]"`; see the root `README.md`).
 
-A comprehensive dashboard for tracking and visualizing context debt across codebases, including missing documentation, complex call chains, and hotspots.
+Feed it real `u scan` maps (`maps/repo.json`). Hotspots use McCabe `complexity`,
+`len(callers)` as a static call-frequency proxy, and heuristic `side_effects` tag
+counts. When present, high-confidence `return_type` (concrete class names used for
+factory `obj.method` edges) is counted as an informational metric — not a coverage
+target. Fields the scanner does not emit (`has_docstring`, `has_type_hints`,
+`side_effects_documented`, runtime `call_frequency`) are **not invented** as zeros
+for gap reports.
 
-## Features
+## Features (aligned with map reality)
 
-- **Context Debt Metrics**: Track documentation coverage, complexity, side effects, and type hints
-- **Hotspot Analysis**: Identify the most complex and frequently called functions
-- **Documentation Gaps**: Find missing READMEs, docstrings, type hints, and side effect documentation
-- **Call Chain Analysis**: Visualize deep function call chains and their complexity
-- **Trends Over Time**: Track how context debt changes over time
-- **Web Interface**: Modern, responsive web dashboard
-- **API Endpoints**: RESTful API for integration with other tools
+- **Hotspot Analysis**: McCabe complexity + caller count + side-effect tag count
+- **Side-effect metric**: Count of functions with heuristic tags (not "undocumented" theater)
+- **Documentation Gaps**: Only when the uploaded map includes docstring/type-hint fields
+- **Web Interface / API**: Local Flask-style dashboard for uploaded analysis JSON
 
 ## Quick Start
 
@@ -141,13 +144,13 @@ metrics.append(ContextDebtMetric(
 ### With Understand-First CLI
 
 ```bash
-# Analyze codebase
-u analyze --output analysis.json
+# Build a Python repository map (real CLI)
+u scan . -o maps/repo.json
 
 # Upload to dashboard
 curl -X POST http://localhost:5000/api/upload \
   -H "Content-Type: application/json" \
-  -d @analysis.json
+  -d @maps/repo.json
 ```
 
 ### With GitHub Actions

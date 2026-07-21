@@ -115,13 +115,7 @@ def test_analyzer_perf_smoke_many_functions(tmp_path: pathlib.Path):
 
 
 def test_web_demo_tour_wizard_trimmed():
-    html_path = pathlib.Path("web_demo/index.html")
-    html = html_path.read_text(encoding="utf-8")
-    # Surface-honesty PR trims wizard chrome; skip until that lands on this branch.
-    if 'id="wizardOverlay"' in html or 'id="onboardingWizard"' in html:
-        import pytest
-
-        pytest.skip("web_demo trim lands with surface-honesty PR")
+    html = pathlib.Path("web_demo/index.html").read_text(encoding="utf-8")
     # Wizard / product-tour chrome removed (Wave 14+) — prefer deletion over stubs.
     assert 'id="wizardOverlay"' not in html
     assert 'id="onboardingWizard"' not in html

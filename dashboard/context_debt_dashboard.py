@@ -18,6 +18,9 @@ import sys
 from collections import defaultdict, Counter
 import re
 
+# Python 3.12+ deprecated the default datetime→sqlite adapter; register explicitly.
+sqlite3.register_adapter(datetime, lambda dt: dt.isoformat(sep=" ", timespec="seconds"))
+
 
 @dataclass
 class ContextDebtMetric:
@@ -282,24 +285,49 @@ class ContextDebtAnalyzer:
         metrics = []
         functions = analysis_data.get("functions", {})
 
-        # Missing documentation metric
+        # Missing documentation metric — only from explicit map fields (u scan emits these).
         total_functions = len(functions)
-        documented_functions = sum(1 for f in functions.values() if f.get("has_docstring", False))
-        doc_coverage = (documented_functions / total_functions * 100) if total_functions > 0 else 0
-
-        metrics.append(
-            ContextDebtMetric(
-                name="Documentation Coverage",
-                value=doc_coverage,
-                threshold=80.0,
-                severity="high" if doc_coverage < 50 else "medium" if doc_coverage < 80 else "low",
-                trend="stable",  # Would need historical data to determine
-                description=f"{documented_functions}/{total_functions} functions have docstrings",
-            )
+        maps_with_doc_field = sum(1 for f in functions.values() if "has_docstring" in f)
+        documented_functions = sum(
+            1 for f in functions.values() if f.get("has_docstring") is True
+        )
+        doc_coverage = (
+            (documented_functions / maps_with_doc_field * 100) if maps_with_doc_field > 0 else 0
         )
 
-        # High complexity functions
-        high_complexity = sum(1 for f in functions.values() if f.get("complexity", 0) > 10)
+        if maps_with_doc_field > 0:
+            metrics.append(
+                ContextDebtMetric(
+                    name="Documentation Coverage",
+                    value=doc_coverage,
+                    threshold=80.0,
+                    severity=(
+                        "high" if doc_coverage < 50 else "medium" if doc_coverage < 80 else "low"
+                    ),
+                    trend="stable",  # Would need historical data to determine
+                    description=(
+                        f"{documented_functions}/{maps_with_doc_field} functions have "
+                        "has_docstring=true in the uploaded map"
+                    ),
+                )
+            )
+
+        def _complexity(f: Dict[str, Any]) -> int:
+            c = f.get("complexity", 0)
+            if isinstance(c, dict):
+                return int(c.get("cyclomatic", 0) or 0)
+            return int(c or 0)
+
+        def _se_count(f: Dict[str, Any]) -> int:
+            se = f.get("side_effects")
+            if isinstance(se, list):
+                return len(se)
+            if isinstance(se, (int, float)):
+                return int(se)
+            return 0
+
+        # High complexity functions (McCabe from maps)
+        high_complexity = sum(1 for f in functions.values() if _complexity(f) > 10)
         complexity_ratio = (high_complexity / total_functions * 100) if total_functions > 0 else 0
 
         metrics.append(
@@ -313,23 +341,19 @@ class ContextDebtAnalyzer:
                     else "high" if complexity_ratio > 20 else "medium"
                 ),
                 trend="stable",
-                description=f"{high_complexity} functions have complexity > 10",
+                description=f"{high_complexity} functions have McCabe complexity > 10",
             )
         )
 
-        # Side effects without documentation
-        unmanaged_side_effects = sum(
-            1
-            for f in functions.values()
-            if f.get("side_effects", 0) > 0 and not f.get("side_effects_documented", False)
-        )
+        # Heuristic side-effect tags (maps do not track "documented" flags)
+        with_side_effects = sum(1 for f in functions.values() if _se_count(f) > 0)
         side_effects_ratio = (
-            (unmanaged_side_effects / total_functions * 100) if total_functions > 0 else 0
+            (with_side_effects / total_functions * 100) if total_functions > 0 else 0
         )
 
         metrics.append(
             ContextDebtMetric(
-                name="Unmanaged Side Effects",
+                name="Functions with Side-Effect Tags",
                 value=side_effects_ratio,
                 threshold=10.0,
                 severity=(
@@ -338,26 +362,62 @@ class ContextDebtAnalyzer:
                     else "high" if side_effects_ratio > 10 else "medium"
                 ),
                 trend="stable",
-                description=f"{unmanaged_side_effects} functions have undocumented side effects",
-            )
-        )
-
-        # Missing type hints
-        typed_functions = sum(1 for f in functions.values() if f.get("has_type_hints", False))
-        type_coverage = (typed_functions / total_functions * 100) if total_functions > 0 else 0
-
-        metrics.append(
-            ContextDebtMetric(
-                name="Type Hint Coverage",
-                value=type_coverage,
-                threshold=70.0,
-                severity=(
-                    "high" if type_coverage < 50 else "medium" if type_coverage < 70 else "low"
+                description=(
+                    f"{with_side_effects} functions have heuristic side_effects tags "
+                    "(not a documentation-coverage metric; maps lack side_effects_documented)"
                 ),
-                trend="stable",
-                description=f"{typed_functions}/{total_functions} functions have type hints",
             )
         )
+
+        # Type hints: only count when map explicitly provides has_type_hints
+        typed_functions = sum(
+            1 for f in functions.values() if f.get("has_type_hints") is True
+        )
+        maps_with_type_field = sum(1 for f in functions.values() if "has_type_hints" in f)
+        type_coverage = (
+            (typed_functions / maps_with_type_field * 100) if maps_with_type_field > 0 else 0
+        )
+
+        if maps_with_type_field > 0:
+            metrics.append(
+                ContextDebtMetric(
+                    name="Type Hint Coverage",
+                    value=type_coverage,
+                    threshold=70.0,
+                    severity=(
+                        "high" if type_coverage < 50 else "medium" if type_coverage < 70 else "low"
+                    ),
+                    trend="stable",
+                    description=(
+                        f"{typed_functions}/{maps_with_type_field} functions with "
+                        "has_type_hints=true in the uploaded map"
+                    ),
+                )
+            )
+
+        # High-confidence concrete return types (analyzer-emitted; absent when ambiguous).
+        with_return_type = sum(
+            1 for f in functions.values() if isinstance(f.get("return_type"), str) and f["return_type"]
+        )
+        maps_with_return_type_field = sum(1 for f in functions.values() if "return_type" in f)
+        if maps_with_return_type_field > 0 or with_return_type > 0:
+            # Denominator: functions that could expose the field (prefer explicit keys;
+            # else report count against total when at least one return_type is present).
+            denom = maps_with_return_type_field if maps_with_return_type_field > 0 else total_functions
+            rt_ratio = (with_return_type / denom * 100) if denom > 0 else 0.0
+            metrics.append(
+                ContextDebtMetric(
+                    name="Inferred Return Types",
+                    value=rt_ratio,
+                    threshold=0.0,
+                    severity="low",
+                    trend="stable",
+                    description=(
+                        f"{with_return_type} functions expose high-confidence return_type "
+                        "(concrete class for factory obj.method edges; not a coverage target)"
+                    ),
+                )
+            )
 
         return metrics
 
@@ -408,26 +468,60 @@ class ContextDebtAnalyzer:
         return longest_chain
 
     def _analyze_hotspots(self, analysis_data: Dict[str, Any]) -> List[Hotspot]:
-        """Analyze code hotspots."""
+        """Analyze code hotspots from real map fields (Wave 4 honesty).
+
+        Uses McCabe ``complexity``, ``len(callers)`` as call frequency proxy, and
+        ``len(side_effects)`` heuristic tags. Does not invent ``call_frequency``
+        or treat missing ``side_effects`` as measured zero without a list.
+        """
         hotspots = []
         functions = analysis_data.get("functions", {})
 
         for func_name, func_data in functions.items():
             complexity = func_data.get("complexity", 0)
-            call_frequency = func_data.get("call_frequency", 0)
-            side_effects = func_data.get("side_effects", 0)
+            if isinstance(complexity, dict):
+                complexity = int(complexity.get("cyclomatic", 0) or 0)
+            else:
+                complexity = int(complexity or 0)
 
-            # Calculate risk score
-            risk_score = complexity * 0.3 + call_frequency * 0.2 + side_effects * 0.5
+            callers = func_data.get("callers")
+            if isinstance(callers, list):
+                call_frequency = len(callers)
+            else:
+                # Absent callers ≠ measured zero frequency from runtime.
+                call_frequency = int(func_data.get("call_frequency") or 0)
+
+            se_raw = func_data.get("side_effects")
+            if isinstance(se_raw, list):
+                side_effects = len(se_raw)
+            elif isinstance(se_raw, (int, float)):
+                side_effects = int(se_raw)
+            else:
+                side_effects = 0
+
+            # Gap debt from real map fields only (missing key ≠ measured false).
+            doc_gap = 1.0 if ("has_docstring" in func_data and not func_data.get("has_docstring")) else 0.0
+            type_gap = (
+                1.0 if ("has_type_hints" in func_data and not func_data.get("has_type_hints")) else 0.0
+            )
+
+            risk_score = (
+                complexity * 0.3
+                + call_frequency * 0.2
+                + side_effects * 0.4
+                + doc_gap * 0.05
+                + type_gap * 0.05
+            )
+            file_path = func_data.get("file") or func_data.get("file_path") or ""
 
             hotspots.append(
                 Hotspot(
-                    file_path=func_data.get("file_path", ""),
+                    file_path=file_path,
                     function_name=func_name,
                     complexity=complexity,
                     call_frequency=call_frequency,
                     side_effects=side_effects,
-                    last_modified=datetime.now(),  # Would need git history
+                    last_modified=datetime.now(),  # git history not wired
                     risk_score=risk_score,
                 )
             )
@@ -454,11 +548,12 @@ class ContextDebtAnalyzer:
                     )
                 )
 
-        # Check function documentation
+        # Docstring / type-hint gaps only when the map explicitly includes those fields.
+        # Python `u scan` maps emit has_docstring / has_type_hints (Wave 5+).
         for func_name, func_data in functions.items():
-            file_path = func_data.get("file_path", "")
+            file_path = func_data.get("file") or func_data.get("file_path") or ""
 
-            if not func_data.get("has_docstring", False):
+            if "has_docstring" in func_data and not func_data.get("has_docstring"):
                 gaps.append(
                     DocumentationGap(
                         file_path=file_path,
@@ -470,7 +565,7 @@ class ContextDebtAnalyzer:
                     )
                 )
 
-            if not func_data.get("has_type_hints", False):
+            if "has_type_hints" in func_data and not func_data.get("has_type_hints"):
                 gaps.append(
                     DocumentationGap(
                         file_path=file_path,
@@ -479,20 +574,6 @@ class ContextDebtAnalyzer:
                         severity="medium",
                         impact="Type information is missing, making the code harder to understand",
                         suggested_action="Add type hints for parameters and return value",
-                    )
-                )
-
-            if func_data.get("side_effects", 0) > 0 and not func_data.get(
-                "side_effects_documented", False
-            ):
-                gaps.append(
-                    DocumentationGap(
-                        file_path=file_path,
-                        function_name=func_name,
-                        gap_type="missing_side_effect_docs",
-                        severity="critical",
-                        impact="Side effects are not documented, leading to unexpected behavior",
-                        suggested_action="Document all side effects in the function docstring",
                     )
                 )
 

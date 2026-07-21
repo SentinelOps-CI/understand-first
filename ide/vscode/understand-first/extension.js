@@ -18,6 +18,7 @@ function readConfig() {
 
 function parseTopFiles() {
   // Prefer lens_merged.json for stability; fallback to tour markdown
+  const codeExt = /\.(?:py|js|jsx|mjs|cjs|ts|tsx|go|java|rs|cs)$/i;
   try {
     const lens = readJSON('maps/lens_merged.json') || readJSON('maps/lens.json');
     if (lens && lens.functions) {
@@ -25,7 +26,7 @@ function parseTopFiles() {
       const uniq = []; const seen = new Set();
       arr.sort((a,b)=>b.score-a.score);
       for (const it of arr) {
-        if (it.file && !seen.has(it.file)) { uniq.push(it.file); seen.add(it.file); }
+        if (it.file && codeExt.test(it.file) && !seen.has(it.file)) { uniq.push(it.file); seen.add(it.file); }
         if (uniq.length>=3) break;
       }
       if (uniq.length) return uniq;
@@ -33,12 +34,12 @@ function parseTopFiles() {
   } catch {}
   try {
     const md = fs.readFileSync('tours/PR.md', 'utf8');
-    const files = [...md.matchAll(/`([^`]+\.py)`/g)].map(m=>m[1]).slice(0,3);
+    const files = [...md.matchAll(/`([^`]+\.(?:py|js|jsx|mjs|cjs|ts|tsx|go|java|rs|cs))`/gi)].map(m=>m[1]).slice(0,3);
     if (files.length) return files;
   } catch {}
   try {
     const md = fs.readFileSync('tours/local.md', 'utf8');
-    const files = [...md.matchAll(/`([^`]+\.py)`/g)].map(m=>m[1]).slice(0,3);
+    const files = [...md.matchAll(/`([^`]+\.(?:py|js|jsx|mjs|cjs|ts|tsx|go|java|rs|cs))`/gi)].map(m=>m[1]).slice(0,3);
     if (files.length) return files;
   } catch {}
   return [];
@@ -447,13 +448,29 @@ function generatePropertyTest(moduleFile, fn) {
 function openTourWalkthrough() {
   const panel = vscode.window.createWebviewPanel('understandFirstTour', 'Understand-First: Tour Walkthrough', vscode.ViewColumn.One, { enableScripts: true });
   const files = parseTopFiles();
-  const cmds = [
-    { title: 'Trace Hot Path', cmd: 'workbench.action.terminal.sendSequence', args: { text: 'u trace module examples/app/hot_path.py run_hot_path -o traces/tour.json\u000D' } },
-    { title: 'Merge Trace', cmd: 'workbench.action.terminal.sendSequence', args: { text: 'u lens merge-trace maps/lens.json traces/tour.json -o maps/lens_merged.json\u000D' } },
-    { title: 'Generate Tour', cmd: 'workbench.action.terminal.sendSequence', args: { text: 'u tour maps/lens_merged.json -o tours/local.md\u000D' } }
-  ];
+  const pyFiles = files.filter(f => /\.py$/i.test(f));
+  // `u trace` / tour_run are Python-only — keep the hot-path command honest.
+  const cmds = [];
+  if (pyFiles.length) {
+    cmds.push({
+      title: 'Trace Hot Path (Python only)',
+      cmd: 'workbench.action.terminal.sendSequence',
+      args: { text: 'u trace module examples/app/hot_path.py run_hot_path -o traces/tour.json\u000D' }
+    });
+    cmds.push({
+      title: 'Merge Trace',
+      cmd: 'workbench.action.terminal.sendSequence',
+      args: { text: 'u lens merge-trace maps/lens.json traces/tour.json -o maps/lens_merged.json\u000D' }
+    });
+  }
+  cmds.push({
+    title: 'Generate Tour',
+    cmd: 'workbench.action.terminal.sendSequence',
+    args: { text: 'u tour maps/lens_merged.json -o tours/local.md\u000D' }
+  });
   const html = `
   <script>
+    const vscode = acquireVsCodeApi();
     const state = { opened: new Set(), ran: new Set() };
     function upd() {
       const o = state.opened.size, r = state.ran.size;
@@ -461,6 +478,7 @@ function openTourWalkthrough() {
       const totalC = document.querySelectorAll('button[data-cmd]').length;
       document.getElementById('progress').textContent =
         'opened ' + o + '/' + totalF + ' • ran ' + r + '/' + totalC;
+      vscode.postMessage({t:'progress', opened: o, ran: r});
     }
   </script>
 
@@ -470,7 +488,6 @@ function openTourWalkthrough() {
   <div class="card"><div id="progress" style="float:right;color:#555">opened 0/0 • ran 0/0</div><b>Run these commands:</b>${cmds.map(c=>`<div><button data-cmd="${c.cmd}" data-args='${JSON.stringify(c.args)}'>${c.title}</button></div>`).join('')}</div>
   <div class="card"><button id="openTourMd">Open Tour Markdown</button> <button id="openGlossary">Open Glossary</button></div>
   <script>
-    const vscode = acquireVsCodeApi();
     document.querySelectorAll('a[data-file]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();state.opened.add(a.dataset.file);upd();vscode.postMessage({t:'open',file:a.dataset.file});}));
     document.querySelectorAll('button[data-cmd]').forEach(b=>b.addEventListener('click',()=>{state.ran.add(b.dataset.cmd);upd();vscode.postMessage({t:'cmd',cmd:b.dataset.cmd,args:JSON.parse(b.dataset.args)});}));
     document.getElementById('openTourMd').onclick=()=>vscode.postMessage({t:'openTour'});
@@ -478,7 +495,18 @@ function openTourWalkthrough() {
   </script>`;
   panel.webview.html = html;
   panel.webview.onDidReceiveMessage(msg=>{
-    if (msg.t==='open') {
+    if (msg.t==='progress') {
+      try {
+        const root = (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders[0])
+          ? vscode.workspace.workspaceFolders[0].uri.fsPath : process.cwd();
+        const progPath = require('path').join(root, '.uf-progress.json');
+        fs.writeFileSync(progPath, JSON.stringify({
+          opened: msg.opened || 0,
+          ran: msg.ran || 0,
+          source: 'vscode_walkthrough'
+        }, null, 2));
+      } catch (e) { /* best-effort progress for u tour_gate */ }
+    } else if (msg.t==='open') {
       const p = msg.file;
       if (fs.existsSync(p)) vscode.workspace.openTextDocument(p).then(doc=>vscode.window.showTextDocument(doc));
       else vscode.window.showWarningMessage('File not found: '+p);
@@ -519,6 +547,42 @@ function getMaps() { logTTU('map_open');
   const repo = readJSON('maps/repo.json') || {functions:{}};
   const lens = readJSON('maps/lens_merged.json') || readJSON('maps/lens.json') || {functions:{}, lens:{seeds:[]}};
   return {repo, lens};
+}
+
+/** Resolve map entry for a workspace file + function (Wave 4: stop absolute-path misses). */
+function lookupFuncMeta(repo, lens, filePath, functionName) {
+  const functions = Object.assign({}, (repo && repo.functions) || {}, (lens && lens.functions) || {});
+  const norm = String(filePath || '').replace(/\\/g, '/');
+  const codeExt = /\.(py|js|jsx|mjs|cjs|ts|tsx|go|java|rs|cs)$/i;
+  const noExt = norm.replace(codeExt, '');
+  const candidates = [
+    `${norm}:${functionName}`,
+    `${noExt}:${functionName}`,
+  ];
+  // Relative suffix match against qualified keys (any supported map language)
+  for (const [qn, meta] of Object.entries(functions)) {
+    if (!qn.endsWith(`:${functionName}`)) continue;
+    const qFile = (meta && meta.file)
+      ? String(meta.file).replace(/\\/g, '/')
+      : (codeExt.test(qn.split(':')[0]) ? qn.split(':')[0] : qn.split(':')[0] + '.py');
+    const qBase = qFile.replace(codeExt, '');
+    const qnPath = qn.split(':')[0];
+    if (
+      norm.endsWith(qFile) ||
+      noExt.endsWith(qBase) ||
+      norm.endsWith(qnPath) ||
+      noExt.endsWith(qnPath.replace(codeExt, ''))
+    ) {
+      return meta;
+    }
+  }
+  for (const k of candidates) {
+    if (functions[k]) return functions[k];
+  }
+  // Last resort: unique short-name match
+  const shorts = Object.entries(functions).filter(([qn]) => qn.endsWith(`:${functionName}`));
+  if (shorts.length === 1) return shorts[0][1];
+  return null;
 }
 
 function decorateEditor(editor) {
@@ -879,20 +943,28 @@ function activate(context) {
   // Load analysis data
   loadAnalysisData();
 
-  // Register CodeLens provider
+  // Register CodeLens / hover for map-backed languages (trace actions stay Python-only)
   const codeLensProvider = new UnderstandFirstCodeLensProvider();
-  context.subscriptions.push(vscode.languages.registerCodeLensProvider(
-    { scheme: 'file', language: 'python' },
-    codeLensProvider
-  ));
-
-  // Register hover provider
   const hoverProvider = new UnderstandFirstHoverProvider();
-  context.subscriptions.push(vscode.languages.registerHoverProvider(
-    { scheme: 'file', language: 'python' },
-    hoverProvider
-  ));
-
+  const mapLanguages = [
+    'python',
+    'javascript',
+    'typescript',
+    'go',
+    'rust',
+    'java',
+    'csharp',
+  ];
+  for (const language of mapLanguages) {
+    context.subscriptions.push(vscode.languages.registerCodeLensProvider(
+      { scheme: 'file', language },
+      codeLensProvider
+    ));
+    context.subscriptions.push(vscode.languages.registerHoverProvider(
+      { scheme: 'file', language },
+      hoverProvider
+    ));
+  }
   // Register commands
   context.subscriptions.push(vscode.commands.registerCommand('understandFirst.showTour', function () { 
     logTTU('tour_run'); 
@@ -1029,24 +1101,27 @@ class UnderstandFirstCodeLensProvider {
       const line = document.lineAt(document.positionAt(match.index).line);
       const range = new vscode.Range(line.range.start, line.range.end);
       
-      // Get function metadata
-      const funcKey = `${document.fileName}:${functionName}`;
-      const funcMeta = lens.functions[funcKey] || repo.functions[funcKey];
+      // Get function metadata (relative map keys, not absolute VS Code paths)
+      const funcMeta = lookupFuncMeta(repo, lens, document.fileName, functionName);
       
       if (funcMeta) {
         const callersCount = (funcMeta.callers || []).length;
         const calleesCount = (funcMeta.calls || []).length;
-        const complexity = funcMeta.complexity || 0;
-        const sideEffects = funcMeta.side_effects || [];
+        const complexity = typeof funcMeta.complexity === 'object'
+          ? (funcMeta.complexity.cyclomatic || 0)
+          : (funcMeta.complexity || 0);
+        const sideEffects = Array.isArray(funcMeta.side_effects) ? funcMeta.side_effects : [];
         const runtimeHit = funcMeta.runtime_hit;
         const contracts = countContractsFor(functionName);
         
-        // Enhanced main CodeLens with better formatting
-        let summary = `📊 ${callersCount}→${calleesCount} calls`;
-        if (complexity > 0) summary += ` | ${complexity} complexity`;
-        if (sideEffects.length > 0) summary += ` | ${sideEffects.length} side effects`;
-        if (contracts > 0) summary += ` | ${contracts} contracts`;
-        if (runtimeHit) summary += ` | 🔥 hot path`;
+        // CodeLens from real map fields only (no hardcoded metric zeros)
+        const returnType = typeof funcMeta.return_type === 'string' ? funcMeta.return_type : '';
+        let summary = `${callersCount}→${calleesCount} calls`;
+        if (complexity > 0) summary += ` | cc ${complexity}`;
+        if (returnType) summary += ` | → ${returnType}`;
+        if (sideEffects.length > 0) summary += ` | se ${sideEffects.length}`;
+        if (contracts > 0) summary += ` | contracts ${contracts}`;
+        if (runtimeHit) summary += ` | hot`;
         
         codeLenses.push(new vscode.CodeLens(range, {
           title: summary,
@@ -1145,26 +1220,32 @@ class UnderstandFirstHoverProvider {
     }
     
     if (funcDefRegex.test(line) || funcCallRegex.test(line)) {
-      const funcKey = `${document.fileName}:${word}`;
-      const funcMeta = lens.functions[funcKey] || repo.functions[funcKey];
+      const funcMeta = lookupFuncMeta(repo, lens, document.fileName, word);
       
       if (funcMeta) {
         const callersCount = (funcMeta.callers || []).length;
         const calleesCount = (funcMeta.calls || []).length;
-        const complexity = funcMeta.complexity || 0;
-        const sideEffects = funcMeta.side_effects || [];
+        const complexity = typeof funcMeta.complexity === 'object'
+          ? (funcMeta.complexity.cyclomatic || 0)
+          : (funcMeta.complexity || 0);
+        const sideEffects = Array.isArray(funcMeta.side_effects) ? funcMeta.side_effects : [];
         const runtimeHit = funcMeta.runtime_hit;
         const contracts = countContractsFor(word);
         const lines = funcMeta.lines || 0;
         
         let hoverContent = `**${word}()**\n\n`;
         
-        // Enhanced call analysis
-        hoverContent += `📊 **Call Analysis**\n`;
+        // Call analysis from map JSON
+        const returnType = typeof funcMeta.return_type === 'string' ? funcMeta.return_type : '';
+        hoverContent += `**Call Analysis**\n`;
         hoverContent += `• **Callers**: ${callersCount}\n`;
         hoverContent += `• **Callees**: ${calleesCount}\n`;
-        hoverContent += `• **Complexity**: ${complexity}\n`;
-        hoverContent += `• **Lines**: ${lines}\n\n`;
+        hoverContent += `• **Complexity (McCabe)**: ${complexity}\n`;
+        hoverContent += `• **Lines**: ${lines}\n`;
+        if (returnType) {
+          hoverContent += `• **Return type**: \`${returnType}\`\n`;
+        }
+        hoverContent += `\n`;
         
         // Side effects section
         if (sideEffects.length > 0) {
@@ -1314,8 +1395,7 @@ function updateOverlayStatusBar(item) {
 // Enhanced function implementations
 function showFunctionDetails(functionName, filePath) {
   const {repo, lens} = getMaps();
-  const funcKey = `${filePath}:${functionName}`;
-  const funcMeta = lens.functions[funcKey] || repo.functions[funcKey];
+  const funcMeta = lookupFuncMeta(repo, lens, filePath, functionName);
   
   if (!funcMeta) {
     vscode.window.showWarningMessage(`Function ${functionName} not found in analysis data.`);
@@ -1324,8 +1404,10 @@ function showFunctionDetails(functionName, filePath) {
   
   const callersCount = (funcMeta.callers || []).length;
   const calleesCount = (funcMeta.calls || []).length;
-  const complexity = funcMeta.complexity || 0;
-  const sideEffects = funcMeta.side_effects || [];
+  const complexity = typeof funcMeta.complexity === 'object'
+    ? (funcMeta.complexity.cyclomatic || 0)
+    : (funcMeta.complexity || 0);
+  const sideEffects = Array.isArray(funcMeta.side_effects) ? funcMeta.side_effects : [];
   const runtimeHit = funcMeta.runtime_hit;
   const contracts = countContractsFor(functionName);
   const lines = funcMeta.lines || 0;
@@ -1379,8 +1461,7 @@ function showFunctionDetails(functionName, filePath) {
 
 function showCallers(functionName, filePath) {
   const {repo, lens} = getMaps();
-  const funcKey = `${filePath}:${functionName}`;
-  const funcMeta = lens.functions[funcKey] || repo.functions[funcKey];
+  const funcMeta = lookupFuncMeta(repo, lens, filePath, functionName);
   
   if (!funcMeta || !funcMeta.callers || funcMeta.callers.length === 0) {
     vscode.window.showInformationMessage(`No callers found for ${functionName}.`);
@@ -1399,8 +1480,7 @@ function showCallers(functionName, filePath) {
 
 function showCallees(functionName, filePath) {
   const {repo, lens} = getMaps();
-  const funcKey = `${filePath}:${functionName}`;
-  const funcMeta = lens.functions[funcKey] || repo.functions[funcKey];
+  const funcMeta = lookupFuncMeta(repo, lens, filePath, functionName);
   
   if (!funcMeta || !funcMeta.calls || funcMeta.calls.length === 0) {
     vscode.window.showInformationMessage(`No callees found for ${functionName}.`);
@@ -1419,8 +1499,7 @@ function showCallees(functionName, filePath) {
 
 function showHotPathAnalysis(functionName, filePath) {
   const {repo, lens} = getMaps();
-  const funcKey = `${filePath}:${functionName}`;
-  const funcMeta = lens.functions[funcKey] || repo.functions[funcKey];
+  const funcMeta = lookupFuncMeta(repo, lens, filePath, functionName);
   
   if (!funcMeta || !funcMeta.runtime_hit) {
     vscode.window.showInformationMessage(`${functionName} is not part of a hot path.`);

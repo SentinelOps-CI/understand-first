@@ -2,34 +2,50 @@ image: python:3.10-slim
 
 pipelines:
   pull-requests:
-    '**':
+    "**":
       - step:
-          name: Build lens & tour
+          name: Build lens & tour (fail-closed)
           caches:
             - pip
           script:
             - python -m pip install --upgrade pip
             - python -m pip install -e ".[dev,examples]"
-            - u scan examples/python_toy -o maps/repo.json
-            - u lens preset bug --map maps/repo.json -o maps/lens.json || true
-            - u trace module examples/app/hot_path.py run_hot_path -o traces/tour.json || true
-            - u lens merge-trace maps/lens.json traces/tour.json -o maps/lens_merged.json || true
-            - u tour maps/lens_merged.json -o tours/PR.md || true
-            - u visual delta maps/lens.json maps/lens_merged.json -o maps/delta.svg || true
+            - mkdir -p maps tours traces
+            - u scan . -o maps/repo.json
+            - u lens from-seeds --seed examples/app/hot_path.py --map maps/repo.json -o maps/lens.json
+            - nohup python examples/servers/http_server.py >/tmp/http.log 2>&1 &
+            - sleep 2
+            - u trace module examples/app/hot_path.py run_hot_path -o traces/tour.json
+            - u lens merge-trace maps/lens.json traces/tour.json -o maps/lens_merged.json
+            - u tour maps/lens_merged.json -o tours/PR.md
+            - u visual delta maps/lens.json maps/lens_merged.json -o maps/delta.svg
           artifacts:
             - tours/PR.md
             - maps/delta.svg
+            - maps/lens.json
+            - maps/lens_merged.json
+            - maps/repo.json
             - docs/**
       - step:
           name: Tour gate
           script:
             - python -m pip install --upgrade pip
             - python -m pip install -e ".[dev,examples]"
+            - test -f maps/lens_merged.json
             - u tour_run maps/lens_merged.json -f fixtures
       - step:
-          name: Comment MR
+          # Soft-fail nicety only: MR comment must not mask analysis failures.
+          # Explicitly labeled — exit 0 after logging; never silent curl soft-fail on
+          # critical scan/lens/tour paths (those are fail-closed above).
+          name: Comment MR (soft-fail nicety)
           script:
             - |
+              set +e
               curl -X POST -H "Content-Type: application/json" -u "$BITBUCKET_USERNAME:$BITBUCKET_APP_PASSWORD" \
                 -d '{"content": {"raw": "See artifacts: tours/PR.md, maps/delta.svg"}}' \
-                "https://api.bitbucket.org/2.0/repositories/$BITBUCKET_REPO_FULL_NAME/pullrequests/$BITBUCKET_PR_ID/comments" || true
+                "https://api.bitbucket.org/2.0/repositories/$BITBUCKET_REPO_FULL_NAME/pullrequests/$BITBUCKET_PR_ID/comments"
+              status=$?
+              if [ "$status" -ne 0 ]; then
+                echo "SOFT-FAIL (nicety): MR comment post failed (exit $status). Analysis artifacts are unaffected."
+              fi
+              exit 0

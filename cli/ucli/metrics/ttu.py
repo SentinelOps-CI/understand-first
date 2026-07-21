@@ -26,7 +26,7 @@ def weekly_report(outfile="docs/ttu.md"):
         for line in f:
             try:
                 rows.append(json.loads(line))
-            except:
+            except (json.JSONDecodeError, TypeError, ValueError):
                 pass
     # naive: compute deltas between first map_open -> tour_run -> fixture_pass per day
     days = {}

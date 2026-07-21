@@ -141,6 +141,7 @@ metrics/
 *.json
 !schemas/*.json
 !examples/**/*.json
+!.bandit-baseline.json
 
 # IDE
 .vscode/
@@ -166,6 +167,8 @@ out.txt
 # Build artifacts
 build/
 dist/
+dist_audit/
+dist_verify/
 *.egg-info/
 
 # Virtual environments

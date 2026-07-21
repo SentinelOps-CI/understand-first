@@ -1,22 +1,21 @@
+import json
 import os
 import re
-import importlib.util
-import json
-from typing import Tuple, Any, Dict, List
-from collections import OrderedDict
-import yaml
 import re as _re
+from collections import OrderedDict
+from typing import Any
+
+import yaml
 
 try:
-    from openapi_schema_validator.validators import OAS30Validator
-    from openapi_schema_validator.validators import check_openapi_schema
+    from openapi_schema_validator.validators import OAS30Validator, check_openapi_schema
 except Exception:  # pragma: no cover
     OAS30Validator = None  # type: ignore
     check_openapi_schema = None  # type: ignore
 
 
 def _read(path: str) -> str:
-    return open(path, "r", encoding="utf-8", errors="ignore").read()
+    return open(path, encoding="utf-8", errors="ignore").read()
 
 
 FN_DEF_RE = _re.compile(r"^def\s+([A-Za-z_][A-Za-z0-9_]*)\(", _re.M)
@@ -30,7 +29,7 @@ FN_HEAD_RE = _re.compile(r"^\s{2}([A-Za-z_][A-Za-z0-9_]*):", _re.M)
 
 def init_contracts(root: str) -> str:
     entries = []
-    for r, d, files in os.walk(root):
+    for r, _d, files in os.walk(root):
         for f in files:
             if f.endswith(".py"):
                 full = os.path.join(r, f)
@@ -51,18 +50,31 @@ def init_contracts(root: str) -> str:
 
 
 def _exists_module_func(module_path: str, fn: str) -> bool:
+    """AST presence check only — does not exec user modules (safer than import)."""
     try:
-        spec = importlib.util.spec_from_file_location("_mod", module_path)
-        if spec is None or spec.loader is None:
+        import ast
+        from pathlib import Path
+
+        path = Path(module_path)
+        if not path.is_file():
             return False
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        return hasattr(mod, fn)
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in tree.body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == fn:
+                return True
+            if isinstance(node, ast.ClassDef):
+                for item in node.body:
+                    if (
+                        isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef))
+                        and item.name == fn
+                    ):
+                        return True
+        return False
     except Exception:
         return False
 
 
-def check_contracts(path: str) -> Tuple[bool, str]:
+def check_contracts(path: str) -> tuple[bool, str]:
     txt = _read(path)
     ok = True
     report_lines = ["# Contracts Check Report\n"]
@@ -84,7 +96,7 @@ def check_contracts(path: str) -> Tuple[bool, str]:
     return ok, "\n".join(report_lines)
 
 
-def _strategy_expr(meta: Dict[str, Any]) -> str:
+def _strategy_expr(meta: dict[str, Any]) -> str:
     t = (meta or {}).get("type")
     if "enum" in (meta or {}):
         return "st.sampled_from(" + json.dumps(meta["enum"]) + ")"
@@ -130,12 +142,25 @@ def _strategy_expr(meta: Dict[str, Any]) -> str:
 
 
 def stub_tests(path: str) -> str:
+    """Generate Hypothesis-oriented stubs that check symbols via AST (no exec_module)."""
     txt = _read(path)
     out = [
         "# Auto-generated contract stubs\n",
         "# Requires: hypothesis\n",
+        "# Symbol presence is checked via AST parse — modules are NOT imported/executed.\n",
+        "from __future__ import annotations\n",
+        "import ast\n",
+        "import pathlib\n",
         "from hypothesis import strategies as st\n",
-        "import importlib.util\n",
+        "\n",
+        "def _ast_func_names(module_path: str) -> set[str]:\n",
+        "    src = pathlib.Path(module_path).read_text(encoding='utf-8')\n",
+        "    tree = ast.parse(src)\n",
+        "    return {\n",
+        "        n.name\n",
+        "        for n in ast.walk(tree)\n",
+        "        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))\n",
+        "    }\n",
     ]
     idx = 0
     blocks = [b.strip() for b in txt.split("\n---\n") if b.strip()]
@@ -145,13 +170,8 @@ def stub_tests(path: str) -> str:
             continue
         mod = m.group(1).strip().replace("\\", "/")
         is_virtual = mod.startswith(("ROUTE::", "PROTO::"))
-        if not is_virtual:
-            spec_line = (
-                "spec = importlib.util.spec_from_file_location(" f"'m_{idx}', '{mod}')"
-            )
-            out.append(spec_line)
-            out.append(f"m_{idx} = importlib.util.module_from_spec(spec)")
-            out.append(f"spec.loader.exec_module(m_{idx})  # type: ignore\n")
+        # Escape for embedding in generated source string literals.
+        mod_lit = mod.replace("\\", "\\\\").replace("'", "\\'")
         for fn_block in FN_BLOCK_RE.finditer(b):
             fn = fn_block.group(1)
             body = fn_block.group(2)
@@ -162,23 +182,21 @@ def stub_tests(path: str) -> str:
                     meta = json.loads(req_m.group(1))
                     expr = _strategy_expr(meta)
                     out.append(f"req_strategy_{idx}_{fn} = {expr}")
-                except Exception:
+                except (json.JSONDecodeError, TypeError, ValueError, KeyError):
                     pass
             if resp_m:
                 try:
                     meta = json.loads(resp_m.group(1))
                     expr = _strategy_expr(meta)
                     out.append(f"resp_strategy_{idx}_{fn} = {expr}")
-                except Exception:
+                except (json.JSONDecodeError, TypeError, ValueError, KeyError):
                     pass
             if not is_virtual:
                 out.append(
-                    (
-                        f"def test_{idx}_{fn}():\n"
-                        f"    # TODO: fill inputs;\n"
-                        f"    # assert pre/post conditions\n"
-                        f"    assert hasattr(m_{idx}, '{fn}')\n"
-                    )
+                    f"def test_{idx}_{fn}():\n"
+                    f"    # TODO: fill inputs; assert pre/post conditions\n"
+                    f"    names = _ast_func_names('{mod_lit}')\n"
+                    f"    assert '{fn}' in names\n"
                 )
         idx += 1
     return "\n".join(out) + "\n"
@@ -191,7 +209,7 @@ def _sanitize_identifier(s: str) -> str:
     return s.strip("_")
 
 
-def _choose_2xx_response(op: Dict[str, Any]) -> Dict[str, Any]:
+def _choose_2xx_response(op: dict[str, Any]) -> dict[str, Any]:
     responses = op.get("responses") or {}
     if not isinstance(responses, dict):
         return {}
@@ -212,17 +230,21 @@ def from_openapi(openapi_path: str) -> str:
         return ""
     # optional validation (non-fatal)
     try:
-        if check_openapi_schema is not None and OAS30Validator is not None and isinstance(data, dict):
+        if (
+            check_openapi_schema is not None
+            and OAS30Validator is not None
+            and isinstance(data, dict)
+        ):
             check_openapi_schema(OAS30Validator, data)
-    except Exception:
+    except (TypeError, ValueError, KeyError, AttributeError):
         pass
     paths = (data or {}).get("paths", {}) or {}
     # components not currently used
 
-    def extract_schema_meta(schema: Dict[str, Any]) -> Dict[str, Any]:
+    def extract_schema_meta(schema: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(schema, dict):
             return {}
-        out: Dict[str, Any] = {}
+        out: dict[str, Any] = {}
         for k in [
             "type",
             "format",
@@ -314,13 +336,20 @@ def from_proto(proto_path: str) -> str:
 
 
 def lean_stubs(contracts_yaml: str, out_dir: str) -> int:
+    """Emit Lean *scaffold* stubs only (``Prop := True`` / ``by trivial``).
+
+    These files are not meant to be compiled or proven; they mark contract
+    coverage for presence checks. Real ``lake build`` is out of scope.
+    """
     txt = _read(contracts_yaml)
     blocks = [b.strip() for b in txt.split("\n---\n") if b.strip()]
+    os.makedirs(out_dir, exist_ok=True)
     count = 0
     for b in blocks:
         header = [
             "import Std.Data",
-            f"-- auto-generated from {contracts_yaml}",
+            f"-- auto-generated scaffold from {contracts_yaml}",
+            "-- Presence-only stubs: Prop := True / by trivial (not a real proof).",
             "namespace Contracts\n",
         ]
         mod_m = re.search(r"module:\s*(.+)", b)
@@ -339,7 +368,7 @@ def lean_stubs(contracts_yaml: str, out_dir: str) -> int:
             lines.append(theorem_sig)
         fname = os.path.join(out_dir, f"invariants_{mod_name}.lean")
         with open(fname, "w", encoding="utf-8") as f:
-            f.write("\\n".join(lines))
+            f.write("\n".join(lines))
         count += 1
     return count
 
@@ -373,16 +402,16 @@ def report_json(path: str):
     return {"issues": issues}
 
 
-def compose(paths: List[str]) -> str:
+def compose(paths: list[str]) -> str:
     """Compose multiple contract YAML files into a single YAML string.
     Keeps first occurrence order; de-duplicates functions per module by name.
     """
     module_to_fns = OrderedDict()
-    modules_order: List[str] = []
+    modules_order: list[str] = []
     for p in paths:
         try:
             txt = _read(p)
-        except Exception:
+        except OSError:
             continue
         for b in _parse_blocks(txt):
             m = re.search(r"module:\s*(.+)", b)
@@ -399,26 +428,26 @@ def compose(paths: List[str]) -> str:
                 body = fn_block.group(2)
                 if fn not in fn_map:
                     # Store exact body including newlines/indentation
-                    fn_map[fn] = [f"  {fn}:"] + [
-                        line for line in body.splitlines() if line.strip()
-                    ]
+                    fn_map[fn] = [f"  {fn}:"] + [line for line in body.splitlines() if line.strip()]
                 # else: duplicate; keep first
-    sections: List[str] = []
+    sections: list[str] = []
     for mod in modules_order:
         parts = [f"module: {mod}", "functions:"]
-        for fn, lines in module_to_fns[mod].items():
+        for _fn, lines in module_to_fns[mod].items():
             parts.extend(lines)
         sections.append("\n".join(parts))
     return ("\n---\n".join(sections) + "\n") if sections else ""
 
 
-def verify_lean(contracts_yaml: str, lean_dir: str) -> Dict[str, Any]:
-    """Verify that Lean stubs exist for each function in contracts.
-    Returns a JSON-serializable summary; does not attempt to compile Lean.
+def verify_lean(contracts_yaml: str, lean_dir: str) -> dict[str, Any]:
+    """Presence-only check that Lean scaffold stubs exist for each contract function.
+
+    Does **not** compile Lean or run ``lake build``. Returns a JSON-serializable
+    summary with ``mode: presence-only``.
     """
     txt = _read(contracts_yaml)
     blocks = _parse_blocks(txt)
-    expected: List[str] = []
+    expected: list[str] = []
     for b in blocks:
         mod_m = re.search(r"module:\s*(.+)", b)
         raw_mod = mod_m.group(1).strip() if mod_m else "Module"
@@ -432,7 +461,7 @@ def verify_lean(contracts_yaml: str, lean_dir: str) -> Dict[str, Any]:
         ):
             fn = _sanitize_identifier(fn_m.group(1))
             expected.append(f"theorem invariant_{mod_name}__{fn}_holds")
-    found: List[str] = []
+    found: list[str] = []
     try:
         for r, _, files in os.walk(lean_dir):
             for f in files:
@@ -442,10 +471,11 @@ def verify_lean(contracts_yaml: str, lean_dir: str) -> Dict[str, Any]:
                 for e in expected:
                     if e in content:
                         found.append(e)
-    except Exception:
+    except OSError:
         pass
     missing = [e for e in expected if e not in set(found)]
     return {
+        "mode": "presence-only",
         "modules_total": len(blocks),
         "functions_total": len(expected),
         "invariants_found": len(set(found)),

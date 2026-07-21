@@ -1,4 +1,5 @@
 name: Publish PyPI
+# Sole PyPI publisher (OIDC trusted publishing). Do not re-add twine upload in ci.yml.
 on:
   workflow_dispatch: {}
   release:

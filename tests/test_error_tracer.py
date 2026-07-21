@@ -1,5 +1,7 @@
+import os
+import tempfile
+
 from cli.ucli.trace.pytrace import analyze_errors_static
-import tempfile, os
 
 
 def test_analyze_errors_static_finds_raises_and_catches():

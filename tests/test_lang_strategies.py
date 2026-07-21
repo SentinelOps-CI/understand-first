@@ -1,8 +1,8 @@
 from cli.ucli.contracts.lang_strategies import (
-    strategy_for_java_type,
+    infer_csharp_method_args,
     infer_java_method_args,
     strategy_for_csharp_type,
-    infer_csharp_method_args,
+    strategy_for_java_type,
 )
 
 

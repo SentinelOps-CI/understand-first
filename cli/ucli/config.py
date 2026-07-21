@@ -1,4 +1,5 @@
-import os, re
+import os
+
 import yaml
 from jsonschema import Draft202012Validator
 
@@ -36,7 +37,7 @@ def load_config(path: str = ".understand-first.yml") -> dict:
     if not os.path.exists(path):
         return cfg
     try:
-        data = yaml.safe_load(open(path, "r", encoding="utf-8")) or {}
+        data = yaml.safe_load(open(path, encoding="utf-8")) or {}
         if isinstance(data, dict):
             cfg.update(
                 {k: v for k, v in data.items() if k in cfg or k == "seeds_for" or k == "metrics"}
@@ -52,10 +53,38 @@ def load_preset(label: str, path: str = ".understand-first.yml") -> list:
     return (c.get("seeds_for", {}) or {}).get(label, [])
 
 
+def schema_keys() -> set:
+    return set(SCHEMA["properties"].keys())
+
+
+def filter_config_to_schema(data: dict) -> dict:
+    """Keep only keys honored by runtime SCHEMA (source of truth)."""
+    if not isinstance(data, dict):
+        return {"hops": 2}
+    out = {}
+    for key in schema_keys():
+        if key not in data:
+            continue
+        value = data[key]
+        if key == "metrics":
+            # SCHEMA only allows metrics.enabled
+            enabled = False
+            if isinstance(value, dict):
+                enabled = bool(value.get("enabled", False))
+            elif isinstance(value, bool):
+                enabled = value
+            out[key] = {"enabled": enabled}
+        else:
+            out[key] = value
+    if "hops" not in out:
+        out["hops"] = 2
+    return out
+
+
 def validate_config_dict(data: dict) -> list:
     validator = Draft202012Validator(SCHEMA)
     errors = []
-    valid_keys = set(SCHEMA["properties"].keys())
+    valid_keys = schema_keys()
     for err in validator.iter_errors(data):
         msg = err.message
         if err.validator == "additionalProperties":

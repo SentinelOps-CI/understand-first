@@ -4,38 +4,54 @@ stages:
   - comment
 
 variables:
-  PIP_DISABLE_PIP_VERSION_CHECK: '1'
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
 
+# Fail-closed build: scan/lens/trace/merge/tour must succeed.
+# visual delta is optional nicety (continue via allow_failure on comment only).
 build_lens:
   stage: build
   image: python:3.10-slim
   script:
     - python -m pip install --upgrade pip
     - python -m pip install -e ".[dev,examples]"
-    - u scan examples/python_toy -o maps/repo.json
-    - u lens preset bug --map maps/repo.json -o maps/lens.json || true
-    - u trace module examples/app/hot_path.py run_hot_path -o traces/tour.json || true
-    - u lens merge-trace maps/lens.json traces/tour.json -o maps/lens_merged.json || true
-    - u tour maps/lens_merged.json -o tours/PR.md || true
-    - u visual delta maps/lens.json maps/lens_merged.json -o maps/delta.svg || true
+    - mkdir -p maps tours traces
+    - u scan . -o maps/repo.json
+    - u lens from-seeds --seed examples/app/hot_path.py --map maps/repo.json -o maps/lens.json
+    - nohup python examples/servers/http_server.py >/tmp/http.log 2>&1 &
+    - sleep 2
+    - u trace module examples/app/hot_path.py run_hot_path -o traces/tour.json
+    - u lens merge-trace maps/lens.json traces/tour.json -o maps/lens_merged.json
+    - u tour maps/lens_merged.json -o tours/PR.md
+    - u visual delta maps/lens.json maps/lens_merged.json -o maps/delta.svg
   artifacts:
     paths:
       - tours/PR.md
       - maps/delta.svg
-      - docs/
+      - maps/lens.json
+      - maps/lens_merged.json
+      - maps/repo.json
+      - traces/tour.json
+    expire_in: 1 week
 
 tour_gate:
   stage: tour
   image: python:3.10-slim
+  needs: ["build_lens"]
   script:
     - python -m pip install --upgrade pip
     - python -m pip install -e ".[dev,examples]"
-    - u tour_run maps/lens_merged.json -f fixtures || (echo "Tour failed" && exit 1)
+    - test -f maps/lens_merged.json || (echo "Missing maps/lens_merged.json from build_lens artifacts" && exit 1)
+    - u tour_run maps/lens_merged.json -f fixtures
 
+# Soft-fail nicety only: posting a comment must not gate merge quality.
+# allow_failure keeps the pipeline green if credentials/API fail; build_lens
+# and tour_gate remain fail-closed.
 comment:
   stage: comment
   image: curlimages/curl:8.8.0
+  allow_failure: true
   script:
-    - 'curl --header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" --data-urlencode "body=See artifacts: tours/PR.md, maps/delta.svg" "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}/notes" || true'
+    - echo "SOFT-FAIL (nicety): MR comment is optional; analysis already ran fail-closed."
+    - 'curl --header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" --data-urlencode "body=See artifacts: tours/PR.md, maps/delta.svg" "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}/notes"'
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'

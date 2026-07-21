@@ -65,6 +65,9 @@ examples = [
     "click>=8.1.7",
     "colorama>=0.4.6",
 ]
+analyzers = [
+    "javalang>=0.13.0",
+]
 
 [project.scripts]
 u = "cli.ucli.main:app"
@@ -78,6 +81,22 @@ Issues = "https://github.com/sentinelops-ci/understand-first/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]
+include = ["cli*"]
+exclude = [
+    "tests*",
+    "examples*",
+    "maps*",
+    "web_demo*",
+    "build*",
+    "dist*",
+    "dashboard*",
+    "commenter*",
+    "instrumentation*",
+    "scripts*",
+    "fixtures*",
+    "contracts*",
+    "templates*",
+]
 
 [tool.setuptools.package-data]
 "cli.ucli" = ["py.typed"]
@@ -94,6 +113,13 @@ src = ["cli", "tests"]
 select = ["E", "F", "I", "B", "UP"]
 ignore = ["E501"]
 
+# Narrow, documented exceptions only:
+# - E402: main.py must bootstrap sys.path / stdout before importing ucli.* and Typer.
+# - B008: Typer's Option()/Argument() defaults are the supported CLI idiom.
+[tool.ruff.lint.per-file-ignores]
+"cli/ucli/main.py" = ["E402", "B008"]
+"cli/ucli/commands/typer_groups.py" = ["B008"]
+
 [tool.ruff.format]
 quote-style = "double"
 
@@ -105,3 +131,4 @@ typeCheckingMode = "basic"
 reportMissingImports = true
 reportMissingTypeStubs = false
 reportRedeclaration = "none"
+

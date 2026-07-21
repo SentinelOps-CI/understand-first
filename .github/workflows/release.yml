@@ -34,10 +34,11 @@ jobs:
           echo "" >> dist/RELEASE_NOTES.md
           echo "## VSIX SHA256" >> dist/RELEASE_NOTES.md
           cat dist/VSIX_SHA256.txt >> dist/RELEASE_NOTES.md
-      - name: Build understanding pack
+      - name: Build understanding pack (optional release asset)
+        continue-on-error: true
         run: |
           python -m pip install -e ".[dev,examples]"
-          u pack --publish || true
+          u pack publish
       - name: Upload artifacts
         uses: softprops/action-gh-release@v2
         with:

@@ -1,5 +1,16 @@
 # Understand-First JSON Schema Reference
 
+> **Honesty note (Wave 3 / Wave 15):** Runtime config is `cli/ucli/config.py` `SCHEMA` only.
+> Python maps emit integer McCabe `complexity`, `calls`/`callers`, and heuristic
+> `side_effects` string tags. JavaScript/TypeScript maps (Wave 15) are
+> **best-effort** regex extracted defs/calls with a keyword complexity heuristic and
+> same-file call edges only — they do **not** claim Python AST parity, import-gated
+> resolution, or McCabe. Unsupported languages appear under `unsupported` counts
+> and are **not** analyzed (no empty fake function maps). Examples below that show
+> `cognitive` / `halstead`, rich documentation fields, or full multi-language
+> fidelity are **illustrative / aspirational** unless the field is produced by
+> `u scan` today.
+
 This document provides comprehensive documentation for all Understand-First JSON schemas, including usage examples, validation rules, and integration guidelines.
 
 ## Table of Contents
@@ -77,6 +88,57 @@ validate(instance=map_data, schema=map_schema)
 - `files`: File-level information and organization
 - `modules`: Logical module structure and dependencies
 - `relationships`: Call graphs and function relationships
+
+### Qualified names (Python maps)
+
+Map keys are **qualified names** of the form `rel/path:local_name`:
+
+| Local name form | Example key | Notes |
+| --- | --- | --- |
+| Top-level function | `pkg/mod:compute` | Backward-compatible bare def name after `:` |
+| Class method | `pkg/mod:Foo.run` | Nested classes use `Outer.Inner.method` |
+| Nested function | `pkg/mod:Foo.run.helper` | Nested under the enclosing local name |
+
+Each function object also includes `simple_name`: the bare basename (`helper` for `Foo.helper`, `compute` for `compute`). Use `simple_name` for short-name UX; prefer full qnames for exact identity.
+
+**Call resolution** (high confidence only — ambiguous names omit edges rather than invent them):
+
+- Bare calls resolve same-file first, then unique import aliases / unique globals
+- `mod.fn` / `pkg.mod.fn` via import aliases when uniquely matched
+- `self.method` uses enclosing class when known (`Class.method`); unbound `self` outside a class body is refused (no same-file basename guess)
+- `from mod import Foo` then `Foo.method` / `obj = Foo(); obj.method` when `Foo` uniquely maps to a scanned class under `mod` (import-gated; ambiguous same-named classes in other modules do not invent edges)
+- `import mod as m` then `m.fn` / `obj = m.Foo(); obj.method` when uniquely matched; `from . import Foo` resolves against package `__init__` when unambiguous
+- `obj.method` when `obj` has a high-confidence type from a constructor (`obj = Foo()`), annotation (`obj: Foo`, `Optional[Foo]`, `Foo | None`), or **return-type propagation** (`obj = make()` where `make` uniquely returns a concrete class via `-> Foo`, `-> models.Foo`, `from mod import Foo as F` then `-> F` / `return F()`, a single `return Foo(...)`, or `return alias` bound to that class). **Multi-hop factory chains** (`outer` returns `inner()` / `return x` after `x = inner()`, up to 3 hops) adopt `inner`'s concrete type when every hop uniquely resolves and agrees; cycles and ambiguous callees omit. Imported return types gate `Class.method` to the import module (so same-named classes in other files do not invent edges). Multi-return / union / unimported ambiguous names omit edges. When origin is only the factory file (same-module class), resolve prefers that file then unique global. Relative class imports (`from ..pkg.models import Foo as F`) are uniqueness-gated the same way.
+- **Honesty rule (Wave 14):** untyped `obj.method` is **refused** even when a same-file method basename is unique. Prefer no edge over a guessed edge. Typed / `self` / import-gated paths above are unchanged.
+- High-confidence `return_type` (concrete class name, import aliases canonicalized) is emitted on function entries when inferred; it is absent when ambiguous. Reports list inferred return types; the dashboard counts functions that expose `return_type` when present in the uploaded map.
+
+### Multi-language map emission (Wave 15–24)
+
+`u scan` merges outputs from registered adapters (`cli/ucli/analyzers/registry.py`):
+
+| Language | Fidelity | What is emitted | Limits |
+| --- | --- | --- | --- |
+| Python (`.py`) | AST | McCabe `complexity`, high-confidence `calls`/`callers`, heuristic `side_effects` | Same honesty rules as above |
+| JavaScript / TypeScript (`.js`, `.mjs`, `.cjs`, `.ts`, `.tsx`, `.jsx`) | **AST preferred** (`javascript-ast` / `typescript-ast`) via Node + TypeScript compiler API; **regex fallback** (`*-best-effort`) if Node or `cli/ucli/analyzers/js_ast` deps missing | Defs + calls; `ast-cyclomatic` or keyword-heuristic; same-file unique edges; AST path may qualify **relative** `./` / `../` imports (incl. re-export barrels ≤2 hops) and nearest **`package.json` `"exports"`** subpaths when uniquely resolved | Not Python parity: no typed `obj.method`, no bare npm package invent, no typechecking. Override with `UF_JS_ANALYZER=regex\|ast\|auto` |
+| Go (`.go`) | **AST preferred** (`go-ast`) via `go run` + `go/parser`; **regex fallback** (`go-best-effort`) if Go toolchain missing | Defs + methods; `ast-cyclomatic` or keyword-heuristic; same-file unique edges; AST path may qualify **same-package** unique names across scanned files | Not Python parity: no cross-package invent, no typed method resolve. Override with `UF_GO_ANALYZER=regex\|ast\|auto` |
+| Java (`.java`) | **AST preferred** (`java-ast`) via optional ``javalang``; **regex fallback** (`java-best-effort`) | Class/method defs; `ast-cyclomatic` or keyword-heuristic; same-file + same-package unique edges | Not typechecked; no cross-package invent. Install `javalang` / `understand-first[analyzers]`. Override with `UF_JAVA_ANALYZER=regex\|ast\|auto` |
+| Rust (`.rs`) | **AST preferred** (`rust-ast`) via `cargo run` + `syn`; **regex fallback** (`rust-best-effort`) if cargo missing | `fn` / `impl` methods; `ast-cyclomatic` or keyword-heuristic; same-file unique edges only | Not rustc typecheck; no `use`/crate-path invent. Override with `UF_RUST_ANALYZER=regex\|ast\|auto` |
+| C# (`.cs`) | **AST preferred** (`csharp-ast`) via `dotnet run` + Roslyn; **regex fallback** (`csharp-best-effort`) if .NET SDK missing | Class/method defs; `ast-cyclomatic` or keyword-heuristic; same-file + same-namespace unique edges | Not typechecked / not MSBuild; no cross-namespace / `using` invent. Requires SDK (`dotnet --list-sdks` non-empty). Override with `UF_CSHARP_ANALYZER=regex\|ast\|auto` |
+| Other source (`.rb`, `.php`, …) | none | Counted under `unsupported` | **Not analyzed** — never fed to Python as empty maps |
+
+**JS/TS `ast-cyclomatic` formula:** `1` plus counts of `If` / `For` / `ForIn` / `ForOf` / `While` / `DoWhile` / `CaseClause` / `CatchClause` / conditional `?:` / `&&` / `||` in the function body; nested function bodies are excluded (counted on their own entries).
+
+**Go `ast-cyclomatic` formula:** `1` plus `IfStmt` / `ForStmt` / `RangeStmt` / `CaseClause` / `&&` / `||` extras; nested `FuncLit` bodies excluded.
+
+**C# `ast-cyclomatic` formula:** `1` plus `If` / `For` / `ForEach` / `While` / `Do` / `Case` / `Catch` / conditional `?:` / `&&` / `||`; nested local function / lambda bodies excluded.
+
+Optional map fields from the dispatcher: `languages_analyzed`, `analyzer_fidelity`, `analyzer_notes`, `unsupported`, `files_analyzed`, `complexity_kind` (`mccabe` | `ast-cyclomatic` | `keyword-heuristic` | `mixed` | `none`), and (for single-language maps) `analyzer` such as `javascript-ast`, `go-ast`, `java-best-effort`, `csharp-ast`, or `go-best-effort`. Per-function entries carry `analyzer`, `complexity_kind`, and per-file `language`. Average complexity in the CLI summary is computed only over analyzed functions (never invented for unsupported languages). Filter with `u scan --lang python` / `--lang javascript` / `--lang typescript` / `--lang go` / `--lang java` / `--lang rust` / `--lang csharp` (aliases: `cs`, `c#`; typescript selects the JS adapter; TS-only trees label `language: typescript`).
+
+**Wave 16–24 consumer honesty:** `u lens` / `u tour` work on JS/Go/Java/Rust/C# maps as reading-plan artifacts and copy fidelity metadata onto the lens. `u scan` / `u report` / `u diff` label whether complexity is McCabe, ast-cyclomatic, or keyword-heuristic (mixed totals are not uniform McCabe). `u tour_run` / `u trace` **refuse** non-Python lenses (Python runtime only). Install JS AST deps with `npm install` in `cli/ucli/analyzers/js_ast`; Go AST needs Go 1.21+ on PATH (`cli/ucli/analyzers/go_ast`); Java AST needs `javalang`; Rust AST needs `cargo` (`cli/ucli/analyzers/rust_ast`); C# AST needs a .NET SDK 8+ (`cli/ucli/analyzers/csharp_ast`).
+
+### Lens seeds: substring vs exact
+
+By default, `u lens from-seeds --seed TOKEN` uses **substring** matching (`TOKEN in qname`). That is convenient but broad (`run` also matches `runner`). Pass `--exact` to match only full qname, local name after `:`, or `simple_name` equality.
 
 ## Lens Schema
 

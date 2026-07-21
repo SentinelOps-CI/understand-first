@@ -1,3 +1,5 @@
+# Fail-closed tour gate (Wave 3): critical scan/lens/trace/tour steps must succeed.
+# Soft-fail only optional gRPC codegen (HTTP server is required for hot_path).
 name: Tour Must Pass
 on:
   pull_request:
@@ -7,39 +9,78 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
+
       - name: Install Python deps
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev,examples]"
+
       - name: Build repo map
         run: |
-          u scan . -o maps/repo.json || true
+          mkdir -p maps tours traces
+          u scan . -o maps/repo.json
+
       - name: Create lens from PR files
         run: |
-          CHANGED=$(git diff --name-only HEAD~1 | tr '\n' ' ')
-          u lens from-seeds --seed $CHANGED --map maps/repo.json -o maps/lens.json || true
+          CHANGED=$(git diff --name-only HEAD~1 2>/dev/null | tr '\n' ' ' || true)
+          if [ -z "$(echo "$CHANGED" | tr -d '[:space:]')" ]; then
+            CHANGED="examples/app/hot_path.py"
+          fi
+          u lens from-seeds --seed $CHANGED --map maps/repo.json -o maps/lens.json
+          test -f maps/lens.json
+
       - name: Generate gRPC Python code
+        continue-on-error: true
         run: |
-          python -m grpc_tools.protoc -I examples/apis             --python_out=examples/apis/gen             --grpc_python_out=examples/apis/gen             examples/apis/orders.proto
+          python -m grpc_tools.protoc -I examples/apis \
+            --python_out=examples/apis/gen \
+            --grpc_python_out=examples/apis/gen \
+            examples/apis/orders.proto
+
       - name: Start HTTP server
         run: |
           nohup python examples/servers/http_server.py >/tmp/http.log 2>&1 &
           sleep 2
+          curl -sf http://127.0.0.1:8000/pets >/dev/null
+
       - name: Start gRPC mock
+        continue-on-error: true
         run: |
           nohup python examples/servers/grpc_server.py >/tmp/grpc.log 2>&1 &
           sleep 2
+
       - name: Trace hot path (runtime truth)
         run: |
           u trace module examples/app/hot_path.py run_hot_path -o traces/tour.json
+          test -f traces/tour.json
           u lens merge-trace maps/lens.json traces/tour.json -o maps/lens_merged.json
+          test -f maps/lens_merged.json
+
       - name: Generate tour (from merged lens)
         run: |
-          u tour maps/lens_merged.json -o tours/PR.md || true
-      - name: Run tour (fixture)
+          u tour maps/lens_merged.json -o tours/PR.md
+          test -f tours/PR.md
+
+      - name: Run tour fixture (fail-closed gate)
         run: |
-          set -e
           u tour_run maps/lens_merged.json -f fixtures
+
+      - name: Upload tour artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tour-must-pass-artifacts
+          path: |
+            maps/repo.json
+            maps/lens.json
+            maps/lens_merged.json
+            traces/tour.json
+            tours/PR.md
+          retention-days: 14
+          if-no-files-found: warn

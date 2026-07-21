@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://understand-first.dev/schemas/config-schema.json",
   "title": "Understand-First Configuration",
-  "description": "Schema for Understand-First configuration files",
+  "description": "Aspirational / documentation schema for configuration files. Runtime source of truth is cli/ucli/config.py SCHEMA (keys: seeds, hops, contracts_paths, glossary_path, seeds_for, metrics.enabled only). Keys such as analysis.complexity.metrics cognitive/halstead, multi-language repository.languages, and most visualization/ci knobs are NOT read by the analyzer today — treat them as future/docs unless present in runtime SCHEMA.",
   "type": "object",
   "required": ["version"],
   "properties": {
@@ -58,11 +58,12 @@
             "threshold": {"type": "integer", "default": 10},
             "metrics": {
               "type": "array",
+              "description": "UNIMPLEMENTED except cyclomatic via Python McCabe in u scan. cognitive/halstead/maintainability are not computed.",
               "items": {
                 "type": "string",
                 "enum": ["cyclomatic", "cognitive", "halstead", "maintainability"]
               },
-              "default": ["cyclomatic", "cognitive"]
+              "default": ["cyclomatic"]
             },
             "ignore_patterns": {
               "type": "array",
@@ -72,6 +73,7 @@
         },
         "side_effects": {
           "type": "object",
+          "description": "Config knobs unused at runtime. Python scan always emits heuristic side_effects tags (see python_analyzer). detect_database and similar toggles are NOT implemented.",
           "properties": {
             "enabled": {"type": "boolean", "default": true},
             "detect_io": {"type": "boolean", "default": true},

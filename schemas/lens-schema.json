@@ -27,10 +27,15 @@
         },
         "seeds": {
           "type": "array",
-          "description": "Seed functions or files that define the lens scope",
+          "description": "Seed functions or files that define the lens scope. Default matching is substring (tok in qname); see exact_match.",
           "items": {
             "type": "string"
           }
+        },
+        "exact_match": {
+          "type": "boolean",
+          "description": "When true, seeds match full qname, local name after ':', or simple_name only (not substring)",
+          "default": false
         },
         "created_at": {
           "type": "string",

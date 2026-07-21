@@ -1,5 +1,5 @@
-from cli.ucli.contracts.contracts import from_openapi, from_proto, report_json
 from cli.ucli.boundaries.scan import scan_boundaries
+from cli.ucli.contracts.contracts import from_openapi, from_proto
 
 
 def test_from_openapi_and_proto_and_report():
@@ -15,7 +15,8 @@ def test_from_openapi_and_proto_and_report():
 
 def report_json_string(txt: str):
     # helper to feed string to report_json logic
-    import tempfile, os
+    import os
+    import tempfile
 
     fd, path = tempfile.mkstemp(suffix=".yaml")
     try:

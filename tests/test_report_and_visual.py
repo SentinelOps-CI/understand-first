@@ -1,7 +1,11 @@
+import json
+import os
+import pathlib
+import tempfile
+
+from cli.ucli.analyzers.python_analyzer import build_python_map
 from cli.ucli.report.report import make_report_md
 from cli.ucli.visual.delta import lens_delta_svg
-from cli.ucli.analyzers.python_analyzer import build_python_map
-import json, tempfile, os, pathlib
 
 
 def test_make_report_md_lists_hotspots():

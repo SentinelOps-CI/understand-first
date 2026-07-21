@@ -1,4 +1,4 @@
-"""C# analyzer (Wave 24).
+"""C# analyzer (Wave 24–27).
 
 Preferred path: ``dotnet run`` + Roslyn worker → ``csharp-ast``,
 ``ast-cyclomatic``. Requires a .NET SDK on PATH.
@@ -6,8 +6,13 @@ Preferred path: ``dotnet run`` + Roslyn worker → ``csharp-ast``,
 Fallback: conservative regex → ``csharp-best-effort``,
 ``keyword-heuristic``. Override with ``UF_CSHARP_ANALYZER=regex|ast|auto``.
 
-Call edges: same-file unique short names, plus high-confidence same-namespace
-unique simple names. Never invents cross-namespace / using edges.
+Call edges (invent-free):
+- same-file unique short names
+- same-namespace unique simple names
+- Wave 27: cross-namespace via ``using`` / ``using static`` / type aliases when
+  the simple name or ``Type.Method`` target is unique among project-visible
+  files (``ProjectReference`` graph when ``.csproj`` files exist)
+- never invents on ambiguous overloads / duplicate simple names
 """
 
 from __future__ import annotations
@@ -229,8 +234,21 @@ _RE_CTOR = re.compile(
     r"([A-Za-z_][\w]*)\s*\("
 )
 _RE_CALL = re.compile(r"(?<![.\w])([A-Za-z_][\w]*)\s*\(")
-_RE_COMPLEXITY = re.compile(
-    r"\b(?:if|for|foreach|while|switch|case|catch)\b|\&\&|\|\||\?(?![?.])"
+_RE_CALL_TYPED = re.compile(
+    r"(?<![.\w])([A-Za-z_][\w]*)\s*\.\s*([A-Za-z_][\w]*)\s*(?:<[^>]+>)?\s*\("
+)
+_RE_COMPLEXITY = re.compile(r"\b(?:if|for|foreach|while|switch|case|catch)\b|\&\&|\|\||\?(?![?.])")
+# using Namespace; / global using Namespace;
+_RE_USING_NS = re.compile(r"(?m)^[ \t]*(?:global\s+)?using\s+(?!static\b)([A-Za-z_][\w.]*)\s*;")
+# using static Namespace.Type;
+_RE_USING_STATIC = re.compile(r"(?m)^[ \t]*(?:global\s+)?using\s+static\s+([A-Za-z_][\w.]*)\s*;")
+# using Alias = Namespace.Type;
+_RE_USING_ALIAS = re.compile(
+    r"(?m)^[ \t]*(?:global\s+)?using\s+([A-Za-z_][\w]*)\s*=\s*([A-Za-z_][\w.]*)\s*;"
+)
+_RE_PROJECT_REF = re.compile(
+    r"""ProjectReference\s+Include\s*=\s*["']([^"']+)["']""",
+    re.IGNORECASE,
 )
 
 
@@ -370,8 +388,24 @@ def _complexity_heuristic(body: str) -> int:
 
 
 def _calls_in_body(body: str) -> list[str]:
+    """Collect bare and ``Type.Method`` call tokens (invent-free resolution later)."""
     calls: list[str] = []
+    typed_spans: list[tuple[int, int]] = []
+    for m in _RE_CALL_TYPED.finditer(body):
+        type_name, method = m.group(1), m.group(2)
+        if type_name in _KEYWORD_CALLEES or method in _KEYWORD_CALLEES:
+            continue
+        if type_name in {"this", "base", "var"}:
+            # Instance/base receivers — keep bare method for same-file resolve.
+            if method not in _KEYWORD_CALLEES:
+                calls.append(method)
+            typed_spans.append((m.start(), m.end()))
+            continue
+        calls.append(f"{type_name}.{method}")
+        typed_spans.append((m.start(), m.end()))
     for m in _RE_CALL.finditer(body):
+        if any(start <= m.start() < end for start, end in typed_spans):
+            continue
         name = m.group(1)
         if name in _KEYWORD_CALLEES:
             continue
@@ -505,7 +539,7 @@ def _parse_csharp_source(src: str, file_path: pathlib.Path) -> tuple[dict[str, A
 
 def _parse_file(file_path: pathlib.Path) -> tuple[dict[str, Any], str]:
     try:
-        src = file_path.read_text(encoding="utf-8")
+        src = file_path.read_text(encoding="utf-8-sig")
     except (OSError, UnicodeError):
         return {}, ""
     try:
@@ -599,6 +633,285 @@ def _attach_same_namespace_edges(
         meta["callers"] = sorted(set(meta.get("callers") or []))
 
 
+def _parse_usings_from_source(src: str) -> dict[str, Any]:
+    """Extract namespace / static / alias usings (comments/strings already ok best-effort)."""
+    cleaned = _strip_comments_and_strings(src)
+    namespaces: list[str] = []
+    static_types: list[str] = []
+    aliases: dict[str, str] = {}
+    for m in _RE_USING_ALIAS.finditer(cleaned):
+        aliases[m.group(1)] = m.group(2)
+    for m in _RE_USING_STATIC.finditer(cleaned):
+        static_types.append(m.group(1))
+    for m in _RE_USING_NS.finditer(cleaned):
+        # Alias lines also match _RE_USING_NS's first group poorly — exclude `X =`.
+        name = m.group(1)
+        if name in aliases or "=" in m.group(0):
+            continue
+        namespaces.append(name)
+    return {
+        "namespaces": list(dict.fromkeys(namespaces)),
+        "static_types": list(dict.fromkeys(static_types)),
+        "aliases": aliases,
+    }
+
+
+def _collect_file_usings(files: list[pathlib.Path]) -> dict[str, dict[str, Any]]:
+    out: dict[str, dict[str, Any]] = {}
+    for path in files:
+        try:
+            src = path.read_text(encoding="utf-8-sig")
+        except (OSError, UnicodeError):
+            continue
+        out[path.as_posix()] = _parse_usings_from_source(src)
+    return out
+
+
+def _collect_csproj_files(root: pathlib.Path) -> list[pathlib.Path]:
+    found: list[pathlib.Path] = []
+    if root.is_file():
+        return []
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if not _should_skip_dir(d)]
+        for name in filenames:
+            if name.lower().endswith(".csproj"):
+                found.append(pathlib.Path(dirpath) / name)
+    return found
+
+
+def _parse_project_references(csproj: pathlib.Path) -> list[pathlib.Path]:
+    try:
+        text = csproj.read_text(encoding="utf-8-sig")
+    except (OSError, UnicodeError):
+        return []
+    refs: list[pathlib.Path] = []
+    base = csproj.parent
+    for m in _RE_PROJECT_REF.finditer(text):
+        raw = m.group(1).strip().replace("\\", "/")
+        cand = (base / raw).resolve()
+        if cand.is_file():
+            refs.append(cand)
+        else:
+            # Allow unresolved path keys for graph completeness when target exists later
+            refs.append(base / raw)
+    return refs
+
+
+def _build_project_graph(
+    root: pathlib.Path,
+    files: list[pathlib.Path],
+) -> tuple[dict[str, str], dict[str, set[str]], bool]:
+    """Map ``.cs`` file → project key and project reachability via ProjectReference.
+
+    Returns ``(file_projects, reachable, has_projects)``. When no ``.csproj`` exists
+    under the scan root, every file is mutually visible (flat scan).
+    """
+    csprojs = _collect_csproj_files(root if root.is_dir() else root.parent)
+    if not csprojs:
+        return {}, {}, False
+
+    proj_keys = {p.resolve().as_posix(): p for p in csprojs}
+    # Direct refs: project_key -> set of referenced project keys
+    direct: dict[str, set[str]] = {k: set() for k in proj_keys}
+    for key, path in proj_keys.items():
+        for ref in _parse_project_references(path):
+            try:
+                ref_key = ref.resolve().as_posix()
+            except OSError:
+                ref_key = ref.as_posix()
+            if ref_key in proj_keys:
+                direct[key].add(ref_key)
+
+    # Transitive closure including self
+    reachable: dict[str, set[str]] = {}
+    for start in proj_keys:
+        seen: set[str] = {start}
+        stack = list(direct.get(start, ()))
+        while stack:
+            cur = stack.pop()
+            if cur in seen:
+                continue
+            seen.add(cur)
+            stack.extend(direct.get(cur, ()))
+        reachable[start] = seen
+
+    # Map each .cs file to nearest owning .csproj (walk parents)
+    root_res = (root if root.is_dir() else root.parent).resolve()
+    csproj_by_dir: dict[pathlib.Path, pathlib.Path] = {}
+    for p in csprojs:
+        csproj_by_dir[p.parent.resolve()] = p.resolve()
+
+    file_projects: dict[str, str] = {}
+    for f in files:
+        cur = f.resolve().parent
+        owned: str | None = None
+        while True:
+            if cur in csproj_by_dir:
+                owned = csproj_by_dir[cur].as_posix()
+                break
+            if cur == root_res or cur.parent == cur:
+                break
+            cur = cur.parent
+        file_projects[f.as_posix()] = owned or ""
+
+    # Empty project key only reaches itself (orphan / unscanned layout)
+    reachable[""] = {""}
+    return file_projects, reachable, True
+
+
+def _unique_qn(candidates: list[str]) -> str | None:
+    cands = list(dict.fromkeys(c for c in candidates if c))
+    return cands[0] if len(cands) == 1 else None
+
+
+def _attach_using_and_project_edges(
+    functions: dict[str, Any],
+    file_namespaces: dict[str, str],
+    file_usings: dict[str, dict[str, Any]],
+    file_projects: dict[str, str],
+    project_reachable: dict[str, set[str]],
+    *,
+    enforce_projects: bool,
+) -> None:
+    """Qualify calls via ``using`` / unique type targets under project visibility.
+
+    Fail closed: ambiguous simple names or overloaded type targets stay bare.
+    """
+    # Indexes
+    by_ns_simple: dict[str, dict[str, list[str]]] = {}
+    by_ns_typed: dict[str, dict[str, list[str]]] = {}  # "Type.Method" -> qns
+    by_ns_type: dict[str, dict[str, list[str]]] = {}  # type simple -> enclosing qns' types
+    qn_meta_ns: dict[str, str] = {}
+    qn_file: dict[str, str] = {}
+
+    for qn, meta in functions.items():
+        file = str(meta.get("file") or "")
+        ns = str(meta.get("namespace") or file_namespaces.get(file) or "")
+        qn_meta_ns[qn] = ns
+        qn_file[qn] = file
+        short = qn.rsplit(":", 1)[-1]
+        simple = str(meta.get("simple_name") or short.rsplit(".", 1)[-1])
+        enclosing = str(meta.get("enclosing") or (short.rsplit(".", 1)[0] if "." in short else ""))
+        if simple == "<init>":
+            continue
+        if ns:
+            by_ns_simple.setdefault(ns, {}).setdefault(simple, []).append(qn)
+            by_ns_simple.setdefault(ns, {}).setdefault(short, []).append(qn)
+            if enclosing:
+                typed = f"{enclosing}.{simple}"
+                by_ns_typed.setdefault(ns, {}).setdefault(typed, []).append(qn)
+                by_ns_typed.setdefault(ns, {}).setdefault(short, []).append(qn)
+                by_ns_type.setdefault(ns, {}).setdefault(enclosing, []).append(qn)
+
+    def project_visible(caller_file: str, callee_qn: str) -> bool:
+        if not enforce_projects:
+            return True
+        callee_file = qn_file.get(callee_qn, "")
+        cp = file_projects.get(caller_file, "")
+        dp = file_projects.get(callee_file, "")
+        return dp in project_reachable.get(cp, {cp})
+
+    def filter_visible(caller_file: str, cands: list[str]) -> list[str]:
+        return [c for c in cands if project_visible(caller_file, c)]
+
+    def resolve_bare(
+        caller_file: str, caller_ns: str, token: str, usings: dict[str, Any]
+    ) -> str | None:
+        cands: list[str] = []
+        # using static Namespace.Type — methods on that type only
+        for static_path in usings.get("static_types") or []:
+            parts = str(static_path).rsplit(".", 1)
+            if len(parts) != 2:
+                continue
+            sns, stype = parts[0], parts[1]
+            typed = f"{stype}.{token}"
+            cands.extend(filter_visible(caller_file, list(by_ns_typed.get(sns, {}).get(typed, []))))
+        # Namespace usings: unique simple name across imported namespaces only
+        for uns in usings.get("namespaces") or []:
+            if uns == caller_ns:
+                continue
+            bucket = by_ns_simple.get(str(uns), {})
+            hit = list(dict.fromkeys(bucket.get(token, [])))
+            exact = [
+                c
+                for c in hit
+                if c.rsplit(":", 1)[-1].endswith("." + token) or c.rsplit(":", 1)[-1] == token
+            ]
+            pick = exact if len(exact) == 1 else (hit if len(hit) == 1 else [])
+            cands.extend(filter_visible(caller_file, pick))
+        return _unique_qn(cands)
+
+    def resolve_typed(
+        caller_file: str, caller_ns: str, type_name: str, method: str, usings: dict[str, Any]
+    ) -> str | None:
+        # Alias → full type path
+        aliases = usings.get("aliases") or {}
+        resolved_type = str(aliases.get(type_name) or type_name)
+        search_namespaces: list[str] = []
+        type_simple = resolved_type
+        if "." in resolved_type:
+            # Fully qualified Type path: Namespace.Type or deeper
+            ns_part, type_simple = resolved_type.rsplit(".", 1)
+            search_namespaces = [ns_part]
+        else:
+            type_simple = resolved_type
+            search_namespaces = [caller_ns] if caller_ns else []
+            for uns in usings.get("namespaces") or []:
+                if uns not in search_namespaces:
+                    search_namespaces.append(str(uns))
+
+        typed_key = f"{type_simple}.{method}"
+        cands: list[str] = []
+        for sns in search_namespaces:
+            if not sns:
+                continue
+            hit = list(dict.fromkeys(by_ns_typed.get(sns, {}).get(typed_key, [])))
+            # Also require the type name itself is unique in that namespace
+            type_qns = list(dict.fromkeys(by_ns_type.get(sns, {}).get(type_simple, [])))
+            type_owners = list(
+                dict.fromkeys(
+                    (functions[q].get("enclosing") or q.rsplit(":", 1)[-1].rsplit(".", 1)[0])
+                    for q in type_qns
+                )
+            )
+            if len(type_owners) > 1:
+                continue
+            cands.extend(filter_visible(caller_file, hit))
+        return _unique_qn(cands)
+
+    for caller_qn, meta in functions.items():
+        caller_file = str(meta.get("file") or "")
+        caller_ns = qn_meta_ns.get(caller_qn) or str(meta.get("namespace") or "")
+        usings = file_usings.get(caller_file) or {
+            "namespaces": [],
+            "static_types": [],
+            "aliases": {},
+        }
+        new_calls: list[str] = []
+        for token in meta.get("calls") or []:
+            if not isinstance(token, str):
+                continue
+            if ":" in token:
+                new_calls.append(token)
+                continue
+            resolved: str | None = None
+            if "." in token:
+                # Type.Method — unique type target only
+                parts = token.split(".")
+                if len(parts) == 2 and parts[0] and parts[1]:
+                    resolved = resolve_typed(caller_file, caller_ns, parts[0], parts[1], usings)
+            else:
+                resolved = resolve_bare(caller_file, caller_ns, token, usings)
+            if resolved and resolved != caller_qn:
+                new_calls.append(resolved)
+                functions[resolved].setdefault("callers", []).append(caller_qn)
+            else:
+                new_calls.append(token)
+        meta["calls"] = list(dict.fromkeys(new_calls))
+    for meta in functions.values():
+        meta["callers"] = sorted(set(meta.get("callers") or []))
+
+
 def _collect_csharp_files(root: pathlib.Path) -> list[pathlib.Path]:
     files: list[pathlib.Path] = []
     if root.is_file():
@@ -612,7 +925,7 @@ def _collect_csharp_files(root: pathlib.Path) -> list[pathlib.Path]:
     return files
 
 
-def _build_regex_map(files: list[pathlib.Path]) -> dict[str, Any]:
+def _build_regex_map(files: list[pathlib.Path], scan_root: pathlib.Path) -> dict[str, Any]:
     functions: dict[str, Any] = {}
     file_namespaces: dict[str, str] = {}
 
@@ -626,8 +939,19 @@ def _build_regex_map(files: list[pathlib.Path]) -> dict[str, Any]:
             m["complexity_kind"] = "keyword-heuristic"
             functions[key] = m
 
+    file_usings = _collect_file_usings(files)
+    file_projects, project_reachable, has_projects = _build_project_graph(scan_root, files)
+
     _attach_and_qualify_same_file(functions)
     _attach_same_namespace_edges(functions, file_namespaces)
+    _attach_using_and_project_edges(
+        functions,
+        file_namespaces,
+        file_usings,
+        file_projects,
+        project_reachable,
+        enforce_projects=has_projects,
+    )
 
     return {
         "language": "csharp",
@@ -637,9 +961,10 @@ def _build_regex_map(files: list[pathlib.Path]) -> dict[str, Any]:
         "complexity_kind": "keyword-heuristic",
         "analyzer_note": (
             "C# map via regex heuristics — not Roslyn/dotnet AST; complexity is "
-            "keyword-based; call edges are same-file unique names, plus "
-            "high-confidence same-namespace unique simple names across scanned "
-            "files. No cross-namespace / using invent; not Python-parity. "
+            "keyword-based; call edges are same-file unique names, same-namespace "
+            "unique simple names, plus invent-free using / ProjectReference edges "
+            "when the simple name or Type.Method target is unique among "
+            "project-visible files. Ambiguous overloads omitted; not Python-parity. "
             "Set UF_CSHARP_ANALYZER=auto with a .NET SDK on PATH for csharp-ast."
         ),
     }
@@ -703,6 +1028,18 @@ def _build_ast_map(
 
     _attach_and_qualify_same_file(functions)
     _attach_same_namespace_edges(functions, file_namespaces)
+    file_usings = _collect_file_usings(files)
+    file_projects, project_reachable, has_projects = _build_project_graph(
+        root if root.is_dir() else root.parent, files
+    )
+    _attach_using_and_project_edges(
+        functions,
+        file_namespaces,
+        file_usings,
+        file_projects,
+        project_reachable,
+        enforce_projects=has_projects,
+    )
     formula = worker_payload.get("complexity_formula") or (
         "1 + If/For/ForEach/While/Do/Case/Catch/Conditional/&&/||; nested local funcs excluded"
     )
@@ -715,8 +1052,10 @@ def _build_ast_map(
         "analyzer_note": (
             "C# map via Roslyn (parse only, not typechecked / not MSBuild). "
             f"Complexity is ast-cyclomatic: {formula}. "
-            "Call edges: same-file unique names plus same-namespace unique simple "
-            "names. No cross-namespace / using invent; not Python-parity. "
+            "Call edges: same-file unique names, same-namespace unique simple "
+            "names, plus invent-free using / ProjectReference edges when the "
+            "simple name or Type.Method target is unique among project-visible "
+            "files. Ambiguous overloads omitted; not Python-parity. "
             "Falls back to csharp-best-effort when the .NET SDK is unavailable."
         ),
     }
@@ -740,7 +1079,7 @@ def build_csharp_map(root: pathlib.Path) -> dict[str, Any]:
         elif mode == "ast":
             raise RuntimeError("UF_CSHARP_ANALYZER=ast but AST worker did not succeed")
 
-    return _build_regex_map(files)
+    return _build_regex_map(files, scan_root)
 
 
 class CSharpAdapter:
@@ -752,7 +1091,8 @@ class CSharpAdapter:
     note = (
         "Prefers Roslyn AST via dotnet run worker (csharp-ast, ast-cyclomatic); "
         "degrades to regex (csharp-best-effort, keyword-heuristic) if .NET SDK missing. "
-        "Same-file + same-namespace unique call edges. Not typechecked / not Python-parity."
+        "Same-file + same-namespace + invent-free using/ProjectReference unique edges. "
+        "Not typechecked / not Python-parity."
     )
 
     def build_map(self, root: pathlib.Path) -> dict[str, Any]:

@@ -63,9 +63,7 @@ def test_csharp_same_namespace_unique_edge(force_regex):
     )
 
 
-def test_csharp_does_not_invent_cross_namespace_edges(
-    tmp_path: pathlib.Path, force_regex
-):
+def test_csharp_does_not_invent_cross_namespace_edges(tmp_path: pathlib.Path, force_regex):
     (tmp_path / "a.cs").write_text(
         "\n".join(
             [
@@ -107,14 +105,12 @@ def test_csharp_does_not_invent_cross_namespace_edges(
     )
 
 
-def test_csharp_does_not_invent_dotted_cross_type_edges(force_regex):
-    """MathUtil.Add in Calc.Scale stays unqualified as invent — no Class.method invent."""
+def test_csharp_unique_type_method_edge(force_regex):
+    """Wave 27: unique Type.Method in the same namespace is qualified (not invented)."""
     m = build_csharp_map(pathlib.Path("examples/csharp_toy"))
     scale = next(k for k in m["functions"] if k.endswith(":Calc.Scale"))
-    # Dotted receiver calls are not auto-qualified into cross-type qnames.
-    assert not any(
-        isinstance(c, str) and c.endswith(":MathUtil.Add")
-        for c in m["functions"][scale]["calls"]
+    assert any(
+        isinstance(c, str) and c.endswith(":MathUtil.Add") for c in m["functions"][scale]["calls"]
     )
 
 
@@ -157,8 +153,7 @@ def test_csharp_ast_path_metadata(force_ast):
     assert any(k.endswith(":Calc.Scale") for k in m["functions"])
     compute = next(k for k in m["functions"] if k.endswith(":MathUtil.Compute"))
     assert any(
-        isinstance(c, str) and c.endswith(":MathUtil.Add")
-        for c in m["functions"][compute]["calls"]
+        isinstance(c, str) and c.endswith(":MathUtil.Add") for c in m["functions"][compute]["calls"]
     )
     classify = next(k for k in m["functions"] if k.endswith(":MathUtil.Classify"))
     assert m["functions"][classify]["complexity"] > 1

@@ -27,13 +27,13 @@ Large codebases reward familiarity over clarity. Docs drift, static graphs show 
 
 | Capability | Understand-First | Static analysis | Doc generators | Review tools |
 |------------|------------------|-----------------|------------------|--------------|
-| Runtime tracing | Yes | No | No | No |
-| Guided tours | Yes | No | No | No |
-| Living maps tied to the repo | Yes | Partial | Manual | No |
-| PR / CI hooks for understanding artifacts | Yes | Rare | No | Partial |
-| TTU / context-debt style metrics | Yes | No | No | No |
-| Multi-language | Python today; more planned | Varies | Varies | Varies |
-| IDE overlays | VS Code extension | Varies | No | Varies |
+| Runtime tracing | Yes (opt-in `u trace`) | No | No | No |
+| Guided tours | Yes (`u tour` from lenses) | No | No | No |
+| Living maps tied to the repo | Yes (Python AST; JS/TS AST via Node when available, else regex fallback) | Partial | Manual | No |
+| PR / CI hooks for understanding artifacts | Yes (when workflows enabled) | Rare | No | Partial |
+| TTU / context-debt style metrics | Yes (map-derived; not invented scores) | No | No | No |
+| Multi-language | Python (solid AST); JS/TS (Node TS AST + regex + barrels/`exports`); Go (`go/ast` + regex); Java (`javalang` + regex); Rust (`syn` AST when cargo present + regex fallback); C# (Roslyn AST when .NET SDK present + regex fallback); others not faked | Varies | Varies | Varies |
+| IDE overlays | VS Code extension (map-backed) | Varies | No | Varies |
 | Contract extraction & checks | Yes | No | No | No |
 
 ### What you gain in practice
@@ -47,8 +47,8 @@ Large codebases reward familiarity over clarity. Docs drift, static graphs show 
 
 ## What it does
 
-- **Maps** — Call and dependency graphs (Python-first; other language adapters are planned).
-- **Invariants & effects** — Surfaces pre/post hints, suspected side effects, and contract-linked structure.
+- **Maps** — Python: high-confidence AST call graphs with McCabe complexity and callers (import-gated / return-type factory edges when unique; ambiguous names omit rather than invent). JavaScript/TypeScript: Node TypeScript AST when available (`*-ast`, `ast-cyclomatic`, same-file + relative imports, re-export barrels, and nearest `package.json` `"exports"` subpaths); otherwise regex fallback. Go: `go/ast` when available; otherwise regex. Java: `javalang` when installed; otherwise regex. Rust: `syn` AST when cargo is available (`rust-ast`, `ast-cyclomatic`); otherwise `rust-best-effort` regex — **not** rustc typechecked/Python parity. C#: Roslyn AST when a .NET SDK is available (`csharp-ast`, `ast-cyclomatic`); otherwise `csharp-best-effort` regex — **not** typechecked/Python parity. Unsupported languages are counted and skipped (never scanned as Python or empty fake maps).
+- **Invariants & effects** — Contract-linked structure and pre/post hints where configured; map `side_effects` tags are AST heuristics on Python, not proven purity (JS maps leave `side_effects` empty).
 - **Hot-path fixtures** — Small, runnable scaffolds tied to real execution.
 - **Reading plans** — Module-oriented summaries and questions before you edit.
 - **Proof-of-understanding hooks** — CI can require map deltas, invariants, or module READMEs where you configure it.
@@ -140,7 +140,7 @@ u contracts lean-stubs contracts/contracts.yaml -o contracts/lean/
 u contracts verify-lean contracts/contracts.yaml -l contracts/lean
 ```
 
-Explore `maps/`, `contracts/`, and `examples/` for generated artifacts.
+`lean-stubs` / `verify-lean` are **scaffold / presence-only** (`Prop := True`, `by trivial`); they do not compile Lean.
 
 ---
 
@@ -166,7 +166,7 @@ u tour maps/django_lens.json -o tours/django_tour.md
 
 ## Web demo
 
-The [browser demo](web_demo/index.html) runs entirely on your machine: paste Python, inspect structure, explore tours and exports (JSON, Markdown, tour formats), and try complexity and call-graph views without installing the CLI.
+The [browser demo](web_demo/index.html) is a **minimal** paste-box + graph sketch. It is **not** `u scan` / `u tour` / `u pack` parity — use the CLI for real maps (Python AST; JS/TS AST or regex fallback), complexity, callers, and exportable artifacts.
 
 ---
 
@@ -194,8 +194,13 @@ Supported flavors include Django, FastAPI, React, Flask, microservices, Node, Go
       "file": "examples/python_toy/pkg/service.py",
       "calls": ["add", "maybe_log"],
       "callers": [],
-      "complexity": 3,
-      "side_effects": ["logging"]
+      "complexity": 1
+    },
+    "examples/python_toy/pkg/service:classify": {
+      "file": "examples/python_toy/pkg/service.py",
+      "calls": [],
+      "callers": [],
+      "complexity": 4
     }
   }
 }
@@ -252,11 +257,11 @@ u demo     # contracts, services, trace, tour, dashboard; prints a local file UR
 - **Lenses & tours** — `u lens` (from-issue, from-seeds, merge-trace, preset, ingest-*, explain), `u tour`, `u tour_run`
 - **Tracing** — `u trace module`, `u trace errors`
 - **Boundaries** — `u boundaries scan`
-- **Contracts** — `u contracts from-openapi`, `from-proto`, `compose`, `lean-stubs`, `verify-lean`, `stub-tests`
+- **Contracts** — `u contracts from-openapi`, `from-proto`, `compose`, `lean-stubs` (scaffold), `verify-lean` (presence-only), `stub-tests`
 - **Visualization** — `u visual delta`
-- **Packs** — `u pack create`, `u pack --publish`
+- **Packs** — `u pack create`, `u pack publish`
 - **Glossary & dashboard** — `u glossary`, `u dashboard`
-- **Health & config** — `u doctor`, `u ttu`, `u init`, `u tour_gate`, `u config_validate`
+- **Health & config** — `u doctor`, `u ttu`, `u init`, `u tour_run` / `u tour_gate` (fixture + IDE progress), `u config_validate`
 
 See `u --help` for flags and subcommands.
 
@@ -273,7 +278,8 @@ See `u --help` for flags and subcommands.
 | `ide/` | VS Code extension (maps, tours, error propagation) |
 | `examples/` | Django, FastAPI, Flask, React (Vite), microservices, toys |
 | `templates/` | Project-type starters for `u init` |
-| `web_demo/` | Static interactive demo |
+| `web_demo/` | Static browser-heuristic demo (not `u scan` parity) |
+| `instrumentation/` | Standalone metrics stack; not wired into the `u` CLI |
 | `maps/` | Generated maps (JSON, DOT, Markdown, SVG) |
 | `tests/` | CLI and component tests |
 
@@ -331,9 +337,9 @@ More detail: `docs/usage.md` and `docs/onboarding.md`.
 
 ## Roadmap
 
-- Language adapters: TypeScript, Go, Java (see issues and `docs/` for direction).
+- Language adapters: Kotlin, deeper crate-graph Rust resolve, richer C# `using`/project-reference edges, etc. Bare npm package-name resolve stays out of scope by design.
 - Map-delta visualizations and richer PR comment flows.
-- Invariant DSL with optional Lean stubs.
+- Invariant DSL with optional Lean scaffold stubs (presence-only; not compiled).
 - Deeper IDE integration beyond the current VS Code extension.
 
 ---

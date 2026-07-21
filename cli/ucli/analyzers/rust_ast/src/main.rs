@@ -1,8 +1,11 @@
-//! Understand-First Rust AST worker (Wave 23).
+//! Understand-First Rust AST worker (Wave 23–26).
 //!
 //! Parse-only via `syn` (not rustc typecheck / MIR).
 //! Complexity (ast-cyclomatic): 1 + If/While/For/Loop/MatchArm/Binary &&|| /
 //!   Question (?)/IfLet/WhileLet; nested fn/closure bodies excluded.
+//!
+//! Wave 26: also emits top-level `mod` / `use` declarations so the Python
+//! adapter can qualify invent-free cross-module edges for unique targets.
 //!
 //! stdin JSON: { "root": "<abs>", "files": ["rel.rs", ...] }
 //! stdout JSON: { "ok": true, "files": [...], "complexity_formula": "..." }
@@ -14,7 +17,7 @@ use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 use syn::spanned::Spanned;
 use syn::visit::Visit;
-use syn::{BinOp, Expr, ImplItem, Item, Pat};
+use syn::{BinOp, Expr, ImplItem, Item, Pat, UseTree};
 
 const COMPLEXITY_FORMULA: &str = "1 + If/While/For/Loop/MatchArm/IfLet/WhileLet/Question/?=/&&/||; nested fn/closure bodies excluded";
 
@@ -36,9 +39,23 @@ struct FuncMeta {
 }
 
 #[derive(Serialize)]
+struct UseBinding {
+    /// Local binding name in scope (after `as`, or last path segment).
+    name: String,
+    /// Original imported item name (differs from ``name`` when renamed with ``as``).
+    imported: String,
+    /// Module path segments before the imported name (e.g. helper for helper::fn).
+    module: Vec<String>,
+}
+
+#[derive(Serialize)]
 struct FileEntry {
     file: String,
     functions: serde_json::Map<String, serde_json::Value>,
+    /// Top-level `mod name;` / `mod name { ... }` identifiers.
+    mods: Vec<String>,
+    /// Flattened `use` bindings (globs omitted — ambiguous).
+    uses: Vec<UseBinding>,
 }
 
 #[derive(Serialize)]
@@ -84,6 +101,8 @@ fn main() {
                 files_out.push(FileEntry {
                     file: rel,
                     functions: serde_json::Map::new(),
+                    mods: vec![],
+                    uses: vec![],
                 });
             }
         }
@@ -116,6 +135,8 @@ fn parse_file(abs: &Path, display: &str) -> Result<FileEntry, String> {
     let src = fs::read_to_string(abs).map_err(|e| e.to_string())?;
     let file = syn::parse_file(&src).map_err(|e| e.to_string())?;
     let mut funcs = serde_json::Map::new();
+    let mut mods = Vec::new();
+    let mut uses = Vec::new();
 
     for item in &file.items {
         match item {
@@ -137,14 +158,68 @@ fn parse_file(abs: &Path, display: &str) -> Result<FileEntry, String> {
                     }
                 }
             }
+            Item::Mod(m) => {
+                mods.push(m.ident.to_string());
+            }
+            Item::Use(u) => {
+                collect_use_bindings(&u.tree, &mut Vec::new(), &mut uses);
+            }
             _ => {}
         }
     }
 
+    mods.sort();
+    mods.dedup();
+
     Ok(FileEntry {
         file: display.replace('\\', "/"),
         functions: funcs,
+        mods,
+        uses,
     })
+}
+
+fn collect_use_bindings(tree: &UseTree, prefix: &mut Vec<String>, out: &mut Vec<UseBinding>) {
+    match tree {
+        UseTree::Path(p) => {
+            prefix.push(p.ident.to_string());
+            collect_use_bindings(&p.tree, prefix, out);
+            prefix.pop();
+        }
+        UseTree::Name(n) => {
+            let name = n.ident.to_string();
+            if name == "self" {
+                if let Some(mod_name) = prefix.last() {
+                    out.push(UseBinding {
+                        name: mod_name.clone(),
+                        imported: mod_name.clone(),
+                        module: prefix[..prefix.len().saturating_sub(1)].to_vec(),
+                    });
+                }
+            } else {
+                out.push(UseBinding {
+                    name: name.clone(),
+                    imported: name,
+                    module: prefix.clone(),
+                });
+            }
+        }
+        UseTree::Rename(r) => {
+            out.push(UseBinding {
+                name: r.rename.to_string(),
+                imported: r.ident.to_string(),
+                module: prefix.clone(),
+            });
+        }
+        UseTree::Group(g) => {
+            for item in &g.items {
+                collect_use_bindings(item, prefix, out);
+            }
+        }
+        UseTree::Glob(_) => {
+            // Ambiguous — omit (invent-free).
+        }
+    }
 }
 
 fn type_path_name(ty: &syn::Type) -> Option<String> {
@@ -229,14 +304,12 @@ impl<'ast> Visit<'ast> for BodyVisitor {
     }
 
     fn visit_pat(&mut self, node: &'ast Pat) {
-        // if let / while let patterns counted via ExprIf/ExprWhile when let present —
-        // also bump for IfLetExpr-style via Expr::If with let condition is already If.
         syn::visit::visit_pat(self, node);
     }
 
     fn visit_expr_call(&mut self, node: &'ast syn::ExprCall) {
         if let Some(name) = call_name(&node.func) {
-            if !is_builtin(&name) {
+            if !is_builtin(simple_call_name(&name)) {
                 self.calls.insert(name);
             }
         }
@@ -252,13 +325,29 @@ impl<'ast> Visit<'ast> for BodyVisitor {
     }
 }
 
+/// Keep `mod::fn` paths for Wave 26; bare names stay single-segment.
 fn call_name(expr: &Expr) -> Option<String> {
     match expr {
-        Expr::Path(p) => p.path.segments.last().map(|s| s.ident.to_string()),
+        Expr::Path(p) => {
+            let segs: Vec<String> = p
+                .path
+                .segments
+                .iter()
+                .map(|s| s.ident.to_string())
+                .collect();
+            if segs.is_empty() {
+                return None;
+            }
+            Some(segs.join("::"))
+        }
         Expr::Paren(p) => call_name(&p.expr),
         Expr::Group(g) => call_name(&g.expr),
         _ => None,
     }
+}
+
+fn simple_call_name(name: &str) -> &str {
+    name.rsplit("::").next().unwrap_or(name)
 }
 
 fn is_builtin(name: &str) -> bool {

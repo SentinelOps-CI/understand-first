@@ -1,6 +1,8 @@
-// Understand-First Go AST worker (Wave 19).
+// Understand-First Go AST worker (Wave 19 / Wave 28).
 //
-// Uses go/parser + go/ast (parse only — no typecheck / packages.Load).
+// Uses go/parser + go/ast (parse only — no typecheck).
+// Wave 28 emits import specs so the Python adapter can invent-free-qualify
+// selector calls when an import path uniquely maps inside the scan root.
 //
 // Complexity formula (ast-cyclomatic), documented for map consumers:
 //   1 + count of decision points in the function body, not descending into
@@ -22,6 +24,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -41,9 +44,18 @@ type funcMeta struct {
 	Name       string   `json:"name"`
 }
 
+// importSpec is a single import path binding (Wave 28).
+// Name is "" for default imports (caller uses the package clause name),
+// "." for dot-import, "_" for blank, or an explicit alias.
+type importSpec struct {
+	Path string `json:"path"`
+	Name string `json:"name"`
+}
+
 type fileResult struct {
 	File      string              `json:"file"`
 	Package   string              `json:"package,omitempty"`
+	Imports   []importSpec        `json:"imports,omitempty"`
 	Functions map[string]funcMeta `json:"functions"`
 }
 
@@ -149,7 +161,34 @@ func parseFile(absPath, display string) (fileResult, error) {
 	if f.Name != nil {
 		pkg = f.Name.Name
 	}
-	return fileResult{File: display, Package: pkg, Functions: funcs}, nil
+	return fileResult{
+		File:      display,
+		Package:   pkg,
+		Imports:   extractImports(f),
+		Functions: funcs,
+	}, nil
+}
+
+func extractImports(f *ast.File) []importSpec {
+	out := []importSpec{}
+	if f == nil {
+		return out
+	}
+	for _, imp := range f.Imports {
+		if imp == nil || imp.Path == nil {
+			continue
+		}
+		path, err := strconv.Unquote(imp.Path.Value)
+		if err != nil || path == "" {
+			continue
+		}
+		name := ""
+		if imp.Name != nil {
+			name = imp.Name.Name
+		}
+		out = append(out, importSpec{Path: path, Name: name})
+	}
+	return out
 }
 
 func recvTypeName(expr ast.Expr) string {

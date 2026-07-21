@@ -143,10 +143,6 @@ def test_readme_capability_table_honest():
 
 def test_web_demo_minimal_no_tour_wizard_theater():
     html = pathlib.Path("web_demo/index.html").read_text(encoding="utf-8")
-    if 'id="wizardOverlay"' in html or 'id="onboardingWizard"' in html:
-        import pytest
-
-        pytest.skip("web_demo trim lands with surface-honesty PR")
     assert 'id="wizardOverlay"' not in html
     assert 'id="onboardingWizard"' not in html
     assert "showOnboardingWizard" not in html

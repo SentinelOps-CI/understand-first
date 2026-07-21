@@ -180,7 +180,7 @@ jobs:
       # 1) Any HIGH severity finding fails the job (none expected today).
       # 2) Any finding not in the committed .bandit-baseline.json also fails
       #    (catches new LOW/MEDIUM drift). Update the baseline deliberately when
-      #    accepting a finding â€” do not silence with continue-on-error.
+      #    accepting a finding — do not silence with continue-on-error.
       - name: Run bandit (fail on HIGH)
         run: bandit -r cli/ -lll -f screen
 
@@ -195,4 +195,104 @@ jobs:
           path: bandit-report.json
           if-no-files-found: warn
 
-
+  # Wave 17–19: multi-language scan (JS AST + Go AST when toolchains present).
+  # Degrades to regex best-effort if AST workers unavailable; tour_run refuses non-Python.
+  multilang-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-uf-python
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Install JS AST worker deps
+        run: npm install --prefix cli/ucli/analyzers/js_ast
+      - name: Prefetch Rust AST worker deps
+        run: cargo fetch --manifest-path cli/ucli/analyzers/rust_ast/Cargo.toml
+      - name: Prefetch C# AST worker deps
+        run: dotnet restore cli/ucli/analyzers/csharp_ast/UfCsharpAst.csproj
+      - name: Python + JS + Go + Java + Rust + C# multilang smoke
+        run: |
+          mkdir -p maps tours
+          uv run u scan examples/python_toy -o maps/smoke_py.json
+          uv run u scan examples/js_toy --lang javascript -o maps/smoke_js.json
+          uv run python -c "
+          import json
+          d=json.load(open('maps/smoke_js.json'))
+          assert d.get('functions'), 'js map empty'
+          af=d.get('analyzer_fidelity')
+          analyzer=d.get('analyzer','')
+          kind=d.get('complexity_kind','')
+          print('analyzer', analyzer, 'fidelity', af, 'complexity_kind', kind)
+          ok_fid = af in ('ast','best-effort') or (isinstance(af,dict) and set(af.values()) <= {'ast','best-effort'} and af)
+          assert ok_fid, af
+          assert analyzer.endswith('-ast') or 'best-effort' in analyzer, analyzer
+          assert kind in ('ast-cyclomatic','keyword-heuristic'), kind
+          "
+          uv run u lens from-seeds --map maps/smoke_js.json --seed compute -o maps/smoke_js_lens.json
+          uv run u tour maps/smoke_js_lens.json -o tours/smoke_js.md
+          grep -E -q "best-effort|ast-cyclomatic|keyword-heuristic|Python-only|javascript-ast|Map fidelity" tours/smoke_js.md
+          uv run u diff --old maps/smoke_js.json --new maps/smoke_js.json -o maps/smoke_js_delta.json --json
+          if uv run u tour_run maps/smoke_js_lens.json; then echo "tour_run should refuse JS lens"; exit 1; fi
+          # Explicit regex degrade path still works
+          UF_JS_ANALYZER=regex uv run u scan examples/js_toy --lang javascript -o maps/smoke_js_regex.json
+          uv run python -c "import json; d=json.load(open('maps/smoke_js_regex.json')); assert 'best-effort' in d.get('analyzer',''); assert d.get('complexity_kind')=='keyword-heuristic'"
+          # Go AST (toolchain present on this job) + regex degrade
+          uv run u scan examples/go_toy --lang go -o maps/smoke_go.json
+          uv run python -c "
+          import json
+          d=json.load(open('maps/smoke_go.json'))
+          assert d.get('functions'), 'go map empty'
+          assert d.get('analyzer') in ('go-ast','go-best-effort'), d.get('analyzer')
+          assert d.get('complexity_kind') in ('ast-cyclomatic','keyword-heuristic'), d.get('complexity_kind')
+          print('go analyzer', d.get('analyzer'), d.get('complexity_kind'))
+          "
+          UF_GO_ANALYZER=regex uv run u scan examples/go_toy --lang go -o maps/smoke_go_regex.json
+          uv run python -c "import json; d=json.load(open('maps/smoke_go_regex.json')); assert d.get('analyzer')=='go-best-effort'; assert d.get('complexity_kind')=='keyword-heuristic'"
+          # Java AST when javalang present; always assert regex path works
+          uv pip install 'javalang>=0.13.0' -q
+          uv run u scan examples/java_toy --lang java -o maps/smoke_java.json
+          uv run python -c "
+          import json
+          d=json.load(open('maps/smoke_java.json'))
+          assert d.get('functions'), 'java map empty'
+          assert d.get('analyzer') in ('java-ast','java-best-effort'), d.get('analyzer')
+          assert d.get('complexity_kind') in ('ast-cyclomatic','keyword-heuristic'), d.get('complexity_kind')
+          print('java analyzer', d.get('analyzer'), len(d.get('functions') or {}))
+          "
+          UF_JAVA_ANALYZER=regex uv run u scan examples/java_toy --lang java -o maps/smoke_java_regex.json
+          uv run python -c "import json; d=json.load(open('maps/smoke_java_regex.json')); assert d.get('analyzer')=='java-best-effort'"
+          # Rust AST when cargo present; always assert regex path works
+          uv run u scan examples/rust_toy --lang rust -o maps/smoke_rust.json
+          uv run python -c "
+          import json
+          d=json.load(open('maps/smoke_rust.json'))
+          assert d.get('functions'), 'rust map empty'
+          assert d.get('analyzer') in ('rust-ast','rust-best-effort'), d.get('analyzer')
+          assert d.get('complexity_kind') in ('ast-cyclomatic','keyword-heuristic'), d.get('complexity_kind')
+          print('rust analyzer', d.get('analyzer'), len(d.get('functions') or {}))
+          "
+          UF_RUST_ANALYZER=regex uv run u scan examples/rust_toy --lang rust -o maps/smoke_rust_regex.json
+          uv run python -c "import json; d=json.load(open('maps/smoke_rust_regex.json')); assert d.get('analyzer')=='rust-best-effort'"
+          # C# AST when SDK present; always assert regex path works
+          uv run u scan examples/csharp_toy --lang csharp -o maps/smoke_csharp.json
+          uv run python -c "
+          import json
+          d=json.load(open('maps/smoke_csharp.json'))
+          assert d.get('functions'), 'csharp map empty'
+          assert d.get('analyzer') in ('csharp-ast','csharp-best-effort'), d.get('analyzer')
+          assert d.get('complexity_kind') in ('ast-cyclomatic','keyword-heuristic'), d.get('complexity_kind')
+          print('csharp analyzer', d.get('analyzer'), len(d.get('functions') or {}))
+          "
+          UF_CSHARP_ANALYZER=regex uv run u scan examples/csharp_toy --lang csharp -o maps/smoke_csharp_regex.json
+          uv run python -c "import json; d=json.load(open('maps/smoke_csharp_regex.json')); assert d.get('analyzer')=='csharp-best-effort'"
+          echo "multilang smoke ok"

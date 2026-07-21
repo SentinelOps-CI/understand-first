@@ -100,6 +100,20 @@ exclude = [
 
 [tool.setuptools.package-data]
 "cli.ucli" = ["py.typed"]
+"cli.ucli.analyzers" = [
+    "js_ast/*.mjs",
+    "js_ast/package.json",
+    "js_ast/README.md",
+    "go_ast/*.go",
+    "go_ast/go.mod",
+    "go_ast/README.md",
+    "rust_ast/Cargo.toml",
+    "rust_ast/src/*.rs",
+    "rust_ast/README.md",
+    "csharp_ast/*.cs",
+    "csharp_ast/*.csproj",
+    "csharp_ast/README.md",
+]
 
 [tool.uv]
 package = true
@@ -131,4 +145,3 @@ typeCheckingMode = "basic"
 reportMissingImports = true
 reportMissingTypeStubs = false
 reportRedeclaration = "none"
-

@@ -50,7 +50,10 @@ jobs:
       - name: Ruff format
         run: uv run ruff format --check cli tests
       - name: Pyright
-        run: uv run pyright
+        run: |
+          # Optional Java AST backend (analyzers extra); install for typecheck even if lock omits it.
+          uv pip install 'javalang>=0.13.0'
+          uv run pyright
 
   vscode:
     runs-on: ubuntu-latest

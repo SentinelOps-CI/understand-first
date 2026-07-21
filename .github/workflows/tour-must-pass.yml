@@ -29,13 +29,13 @@ jobs:
       - name: Create lens from PR files
         run: |
           mapfile -t CHANGED < <(git diff --name-only HEAD~1 2>/dev/null || true)
-          if [ ${#CHANGED[@]} -eq 0 ]; then
-            CHANGED=("examples/app/hot_path.py")
-          fi
-          SEED_ARGS=()
+          # tour_run requires a Python lens; always include the fixture hot path.
+          SEED_ARGS=(--seed "examples/app/hot_path.py")
           for f in "${CHANGED[@]}"; do
             [ -n "$f" ] || continue
-            SEED_ARGS+=(--seed "$f")
+            case "$f" in
+              *.py) SEED_ARGS+=(--seed "$f") ;;
+            esac
           done
           u lens from-seeds "${SEED_ARGS[@]}" --map maps/repo.json -o maps/lens.json
           test -f maps/lens.json

@@ -461,7 +461,7 @@ def java_analyzer_mode() -> str:
 
 def javalang_available() -> bool:
     try:
-        import javalang  # noqa: F401
+        import javalang  # noqa: F401  # pyright: ignore[reportMissingImports]
     except ImportError:
         return False
     return True
@@ -471,7 +471,7 @@ def _javalang_decision_complexity(method_node: Any) -> int:
     """Structural decision-point count (not Python McCabe visitor parity)."""
     if method_node is None:
         return 1
-    import javalang.tree as jtree
+    import javalang.tree as jtree  # pyright: ignore[reportMissingImports]
 
     score = 1
     for _path, _node in method_node.filter(jtree.IfStatement):
@@ -497,7 +497,7 @@ def _javalang_decision_complexity(method_node: Any) -> int:
 def _javalang_calls(method_node: Any) -> list[str]:
     if method_node is None:
         return []
-    import javalang.tree as jtree
+    import javalang.tree as jtree  # pyright: ignore[reportMissingImports]
 
     calls: list[str] = []
     seen: set[str] = set()
@@ -513,8 +513,8 @@ def _javalang_calls(method_node: Any) -> list[str]:
 def _parse_java_javalang(src: str, file_path: pathlib.Path) -> tuple[dict[str, Any], str] | None:
     """Return (functions, package) or None if parse fails / javalang missing."""
     try:
-        import javalang
-        import javalang.tree as jtree
+        import javalang  # pyright: ignore[reportMissingImports]
+        import javalang.tree as jtree  # pyright: ignore[reportMissingImports]
     except ImportError:
         return None
     try:

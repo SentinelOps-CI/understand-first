@@ -9,9 +9,11 @@ Fallback (Wave 15): conservative regex / heuristics → ``javascript-best-effort
 Override with ``UF_JS_ANALYZER=regex|ast|auto`` (default ``auto``).
 
 Call edges: same-file unique short-name qualification. AST path may also
-resolve high-confidence relative imports (``./foo`` / ``../foo``) to unique
-exported names — never bare package imports. Ambiguous or dotted callees stay
-bare. Not Python-parity (no typed ``obj.method`` resolution).
+resolve high-confidence relative imports (``./foo`` / ``../foo``), nearest
+``package.json`` ``"exports"`` / ``"imports"``, and nearest ``tsconfig`` /
+``jsconfig`` ``paths`` aliases when uniquely mapped — never bare npm packages
+or typechecked resolution. Ambiguous or dotted callees stay bare. Not
+Python-parity (no typed ``obj.method`` resolution).
 """
 
 from __future__ import annotations
@@ -723,8 +725,10 @@ def _build_ast_map(
             f"Complexity is ast-cyclomatic (structural decision points): {formula}. "
             "Call edges: same-file unique names, plus high-confidence relative "
             "imports (./ / ../) to unique exports when resolved, including "
-            "one/two-hop re-export barrels (export { x } from './mod'). "
-            "No typed obj.method resolution; not Python-parity. "
+            "one/two-hop re-export barrels (export { x } from './mod'), nearest "
+            'package.json "exports"/"imports", and nearest tsconfig/jsconfig '
+            "paths aliases when uniquely mapped. No typed obj.method; no bare npm "
+            "invent; not typechecked; not Python-parity. "
             "Falls back to *-best-effort regex when Node/typescript unavailable."
         ),
     }
@@ -772,7 +776,8 @@ class JavaScriptAdapter:
         "Prefers Node + TypeScript compiler API (javascript-ast, ast-cyclomatic); "
         "degrades to regex (javascript-best-effort, keyword-heuristic) if Node or "
         "cli/ucli/analyzers/js_ast deps are missing. Same-file call edges; optional "
-        "relative-import edges on the AST path. TypeScript types are not typechecked."
+        "relative-import / package.json exports|imports / tsconfig paths edges on "
+        "the AST path when uniquely resolved. TypeScript types are not typechecked."
     )
 
     def build_map(self, root: pathlib.Path) -> dict[str, Any]:

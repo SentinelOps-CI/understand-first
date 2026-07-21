@@ -113,7 +113,7 @@ static FileEntry ParseFile(string abs, string display)
             if (member is MethodDeclarationSyntax method)
             {
                 var simple = method.Identifier.ValueText;
-                if (string.IsNullOrEmpty(simple) || IsKeywordCallee(simple))
+                if (string.IsNullOrEmpty(simple) || AstHelpers.IsKeywordCallee(simple))
                     continue;
                 var local = $"{typeName}.{simple}";
                 var line = method.Identifier.GetLocation().GetLineSpan().StartLinePosition.Line + 1;
@@ -177,12 +177,6 @@ static (List<string> calls, int complexity) WalkBody(
         visitor.Visit(expressionBody);
     return (visitor.Calls.ToList(), visitor.Complexity);
 }
-
-// Local functions must precede type declarations in a top-level program (CS8803).
-static bool IsKeywordCallee(string name) =>
-    name is "if" or "for" or "foreach" or "while" or "switch" or "case" or "catch"
-        or "return" or "new" or "throw" or "nameof" or "typeof" or "sizeof" or "default"
-        or "checked" or "unchecked" or "await" or "base" or "this";
 
 sealed class BodyVisitor : CSharpSyntaxWalker
 {
@@ -277,7 +271,7 @@ sealed class BodyVisitor : CSharpSyntaxWalker
     public override void VisitInvocationExpression(InvocationExpressionSyntax node)
     {
         var name = InvocationName(node.Expression);
-        if (name is not null && !IsKeywordCallee(name.Contains('.') ? name.Split('.')[^1] : name))
+        if (name is not null && !AstHelpers.IsKeywordCallee(name.Contains('.') ? name.Split('.')[^1] : name))
             Calls.Add(name);
         base.VisitInvocationExpression(node);
     }
@@ -296,6 +290,15 @@ sealed class BodyVisitor : CSharpSyntaxWalker
             ParenthesizedExpressionSyntax p => InvocationName(p.Expression),
             _ => null,
         };
+}
+
+/// <summary>Shared helpers visible to top-level local functions and visitor types.</summary>
+static class AstHelpers
+{
+    public static bool IsKeywordCallee(string name) =>
+        name is "if" or "for" or "foreach" or "while" or "switch" or "case" or "catch"
+            or "return" or "new" or "throw" or "nameof" or "typeof" or "sizeof" or "default"
+            or "checked" or "unchecked" or "await" or "base" or "this";
 }
 
 sealed class Request

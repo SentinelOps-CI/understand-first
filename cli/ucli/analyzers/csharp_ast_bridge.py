@@ -131,7 +131,7 @@ def run_csharp_ast_worker(
                 "--project",
                 str(_PROJECT),
                 "--verbosity",
-                "quiet",
+                "minimal",
             ],
             input=payload,
             capture_output=True,
@@ -151,6 +151,9 @@ def run_csharp_ast_worker(
     if proc.returncode != 0:
         if csharp_analyzer_mode() == "ast":
             err = (proc.stderr or proc.stdout or "").strip() or f"exit {proc.returncode}"
+            # Prefer the last lines — MSBuild banners are noisy; real errors trail.
+            if len(err) > 2000:
+                err = err[-2000:]
             raise RuntimeError(f"C# AST worker failed: {err}")
         return None
 

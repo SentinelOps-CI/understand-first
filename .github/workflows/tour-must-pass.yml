@@ -28,11 +28,16 @@ jobs:
 
       - name: Create lens from PR files
         run: |
-          CHANGED=$(git diff --name-only HEAD~1 2>/dev/null | tr '\n' ' ' || true)
-          if [ -z "$(echo "$CHANGED" | tr -d '[:space:]')" ]; then
-            CHANGED="examples/app/hot_path.py"
+          mapfile -t CHANGED < <(git diff --name-only HEAD~1 2>/dev/null || true)
+          if [ ${#CHANGED[@]} -eq 0 ]; then
+            CHANGED=("examples/app/hot_path.py")
           fi
-          u lens from-seeds --seed $CHANGED --map maps/repo.json -o maps/lens.json
+          SEED_ARGS=()
+          for f in "${CHANGED[@]}"; do
+            [ -n "$f" ] || continue
+            SEED_ARGS+=(--seed "$f")
+          done
+          u lens from-seeds "${SEED_ARGS[@]}" --map maps/repo.json -o maps/lens.json
           test -f maps/lens.json
 
       - name: Generate gRPC Python code

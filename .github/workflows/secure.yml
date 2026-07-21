@@ -18,6 +18,8 @@ jobs:
       - name: Sync and audit
         run: |
           uv sync --all-extras --frozen
-          # Export locked third-party deps only (exclude local editable project not on PyPI).
-          uv export --frozen --all-extras --no-emit-project -o "${RUNNER_TEMP}/audit-requirements.txt"
+          # Audit locked runtime/dev/analyzer deps only (not examples extras / local project).
+          # Examples pull many third-party stacks that are not product surface area.
+          uv export --frozen --extra dev --extra analyzers --no-emit-project \
+            -o "${RUNNER_TEMP}/audit-requirements.txt"
           uv run pip-audit --strict -r "${RUNNER_TEMP}/audit-requirements.txt"

@@ -178,6 +178,12 @@ static (List<string> calls, int complexity) WalkBody(
     return (visitor.Calls.ToList(), visitor.Complexity);
 }
 
+// Local functions must precede type declarations in a top-level program (CS8803).
+static bool IsKeywordCallee(string name) =>
+    name is "if" or "for" or "foreach" or "while" or "switch" or "case" or "catch"
+        or "return" or "new" or "throw" or "nameof" or "typeof" or "sizeof" or "default"
+        or "checked" or "unchecked" or "await" or "base" or "this";
+
 sealed class BodyVisitor : CSharpSyntaxWalker
 {
     public SortedSet<string> Calls { get; } = new(StringComparer.Ordinal);
@@ -291,11 +297,6 @@ sealed class BodyVisitor : CSharpSyntaxWalker
             _ => null,
         };
 }
-
-static bool IsKeywordCallee(string name) =>
-    name is "if" or "for" or "foreach" or "while" or "switch" or "case" or "catch"
-        or "return" or "new" or "throw" or "nameof" or "typeof" or "sizeof" or "default"
-        or "checked" or "unchecked" or "await" or "base" or "this";
 
 sealed class Request
 {

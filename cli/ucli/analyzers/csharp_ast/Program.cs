@@ -271,7 +271,7 @@ sealed class BodyVisitor : CSharpSyntaxWalker
     public override void VisitInvocationExpression(InvocationExpressionSyntax node)
     {
         var name = InvocationName(node.Expression);
-        if (name is not null && !IsKeywordCallee(name))
+        if (name is not null && !IsKeywordCallee(name.Contains('.') ? name.Split('.')[^1] : name))
             Calls.Add(name);
         base.VisitInvocationExpression(node);
     }
@@ -279,6 +279,10 @@ sealed class BodyVisitor : CSharpSyntaxWalker
     static string? InvocationName(ExpressionSyntax expr) =>
         expr switch
         {
+            // Wave 27: preserve Type.Method when receiver is a simple identifier.
+            MemberAccessExpressionSyntax { Expression: IdentifierNameSyntax id } ma
+                when id.Identifier.ValueText is not ("this" or "base")
+                => $"{id.Identifier.ValueText}.{ma.Name.Identifier.ValueText}",
             IdentifierNameSyntax id => id.Identifier.ValueText,
             MemberAccessExpressionSyntax ma => ma.Name.Identifier.ValueText,
             GenericNameSyntax g => g.Identifier.ValueText,

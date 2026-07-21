@@ -8,7 +8,12 @@ from collections.abc import Iterable, Sequence
 from typing import Any
 
 from ucli.analyzers.base import LanguageAdapter
+from ucli.analyzers.csharp_analyzer import CSharpAdapter
+from ucli.analyzers.go_analyzer import GoAdapter
+from ucli.analyzers.java_analyzer import JavaAdapter
+from ucli.analyzers.js_analyzer import JavaScriptAdapter
 from ucli.analyzers.python_analyzer import build_python_map
+from ucli.analyzers.rust_analyzer import RustAdapter
 
 # Extensions that look like source but have no adapter yet.
 _UNSUPPORTED_SOURCE_EXTS = frozenset(
@@ -75,6 +80,11 @@ class PythonAdapter:
 
 _ADAPTERS: list[LanguageAdapter] = [
     PythonAdapter(),
+    JavaScriptAdapter(),
+    GoAdapter(),
+    JavaAdapter(),
+    RustAdapter(),
+    CSharpAdapter(),
 ]
 
 
@@ -143,7 +153,7 @@ def discover_source_inventory(
 
 
 def normalize_lang_filter(languages: Sequence[str] | None) -> set[str] | None:
-    """Map user ``--lang`` tokens to registry language ids (``typescript`` ΓåÆ ``javascript``)."""
+    """Map user ``--lang`` tokens to registry language ids (``typescript`` → ``javascript``)."""
     if not languages:
         return None
     wanted: set[str] = set()
@@ -275,11 +285,11 @@ def build_repo_map(
 def format_unsupported_summary(unsupported: dict[str, int]) -> str:
     if not unsupported:
         return ""
-    parts = [f".{ext}├ù{count}" for ext, count in sorted(unsupported.items())]
+    parts = [f".{ext}×{count}" for ext, count in sorted(unsupported.items())]
     return (
         "Not analyzed (no adapter): "
         + ", ".join(parts)
-        + ". These files were skipped ΓÇö not scanned as Python or empty maps."
+        + ". These files were skipped — not scanned as Python or empty maps."
     )
 
 

@@ -45,16 +45,17 @@ def run_doctor() -> None:
             if r.returncode == 0:
                 ok(f"Node {r.stdout.strip()}")
                 try:
-                    import importlib
+                    from ucli.analyzers.js_ast_bridge import (
+                        ast_backend_available,
+                        ast_unavailable_reason,
+                    )
 
-                    js_bridge = importlib.import_module("ucli.analyzers.js_ast_bridge")
-                    if js_bridge.ast_backend_available():
+                    if ast_backend_available():
                         ok("JS/TS AST worker ready (typescript in cli/ucli/analyzers/js_ast)")
                     else:
                         warn(
                             "JS/TS AST worker deps missing — regex fallback will be used",
-                            js_bridge.ast_unavailable_reason()
-                            or "npm install in cli/ucli/analyzers/js_ast",
+                            ast_unavailable_reason() or "npm install in cli/ucli/analyzers/js_ast",
                         )
                 except Exception:
                     warn(
@@ -84,15 +85,19 @@ def run_doctor() -> None:
             if r.returncode == 0:
                 ok(f"Go {r.stdout.strip()}")
                 try:
-                    import importlib
+                    from ucli.analyzers.go_ast_bridge import (
+                        ast_backend_available as go_ast_available,
+                    )
+                    from ucli.analyzers.go_ast_bridge import (
+                        ast_unavailable_reason as go_ast_unavailable_reason,
+                    )
 
-                    go_bridge = importlib.import_module("ucli.analyzers.go_ast_bridge")
-                    if go_bridge.ast_backend_available():
+                    if go_ast_available():
                         ok("Go AST worker ready (go run cli/ucli/analyzers/go_ast)")
                     else:
                         warn(
                             "Go AST worker not ready — regex fallback will be used",
-                            go_bridge.ast_unavailable_reason() or "Install Go 1.21+",
+                            go_ast_unavailable_reason() or "Install Go 1.21+",
                         )
                 except Exception:
                     warn("Could not probe Go AST worker", "Install Go 1.21+")
@@ -106,15 +111,19 @@ def run_doctor() -> None:
     cargo_bin = shutil.which("cargo")
     if cargo_bin:
         try:
-            import importlib
+            from ucli.analyzers.rust_ast_bridge import (
+                ast_backend_available as rust_ast_available,
+            )
+            from ucli.analyzers.rust_ast_bridge import (
+                ast_unavailable_reason as rust_ast_unavailable_reason,
+            )
 
-            rust_bridge = importlib.import_module("ucli.analyzers.rust_ast_bridge")
-            if rust_bridge.ast_backend_available():
+            if rust_ast_available():
                 ok("Rust AST worker ready (cargo + cli/ucli/analyzers/rust_ast)")
             else:
                 warn(
                     "Rust AST worker not ready — regex fallback will be used",
-                    rust_bridge.ast_unavailable_reason() or "Install Rust/cargo",
+                    rust_ast_unavailable_reason() or "Install Rust/cargo",
                 )
         except Exception:
             warn("Could not probe Rust AST worker", "Install Rust/cargo")
@@ -125,10 +134,9 @@ def run_doctor() -> None:
         )
 
     try:
-        import importlib
+        from ucli.analyzers.java_analyzer import javalang_available
 
-        java_mod = importlib.import_module("ucli.analyzers.java_analyzer")
-        if java_mod.javalang_available():
+        if javalang_available():
             ok("javalang available (java-ast path)")
         else:
             warn(
@@ -141,15 +149,19 @@ def run_doctor() -> None:
     dotnet_bin = shutil.which("dotnet")
     if dotnet_bin:
         try:
-            import importlib
+            from ucli.analyzers.csharp_ast_bridge import (
+                ast_backend_available as csharp_ast_available,
+            )
+            from ucli.analyzers.csharp_ast_bridge import (
+                ast_unavailable_reason as csharp_ast_unavailable_reason,
+            )
 
-            csharp_bridge = importlib.import_module("ucli.analyzers.csharp_ast_bridge")
-            if csharp_bridge.ast_backend_available():
+            if csharp_ast_available():
                 ok("C# AST worker ready (dotnet SDK + cli/ucli/analyzers/csharp_ast)")
             else:
                 warn(
                     "C# AST worker not ready — regex fallback will be used",
-                    csharp_bridge.ast_unavailable_reason() or "Install .NET SDK 8+",
+                    csharp_ast_unavailable_reason() or "Install .NET SDK 8+",
                 )
         except Exception:
             warn("Could not probe C# AST worker", "Install .NET SDK 8+")

@@ -212,23 +212,14 @@ exclude_patterns:
   - "**/__pycache__/**"
   - "**/node_modules/**"
 
-# Analysis Options
-analysis_options:
-  complexity_analysis: true
-  side_effects: true
-  dependencies: true
-
-# CI/CD Integration
-ci_integration:
-  enabled: true
-  platform: "github"
-  fail_on_issues: true
-
-# IDE Integration
-ide_integration:
-  enabled: true
-  type: "vscode"
-  gutter_annotations: true
+# NOT HONORED by runtime SCHEMA (cli/ucli/config.py). Do not add these keys
+# expecting the analyzer to read them — they are documentation theater.
+# analysis_options / ci_integration / ide_integration / include_patterns /
+# exclude_patterns are stripped by filter_config_to_schema().
+#
+# Real keys only: hops, seeds, seeds_for, contracts_paths, glossary_path,
+# metrics.enabled. Python scan always computes McCabe complexity + heuristic
+# side_effects when you run `u scan`.
 ```
 
 ## Using Templates

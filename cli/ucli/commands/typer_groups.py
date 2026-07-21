@@ -6,6 +6,8 @@ helpers in the corresponding ``*_ops`` modules.
 
 from __future__ import annotations
 
+from typing import Optional
+
 import typer
 
 from ucli.commands.ci_ops import run_ci
@@ -123,8 +125,8 @@ def register_trace(app: typer.Typer) -> None:
     def trace_module(
         pyfile: str,
         func: str,
-        a: str | None = None,
-        b: str | None = None,
+        a: Optional[str] = None,
+        b: Optional[str] = None,
         o: str = typer.Option("traces/trace.json", "--output", "-o"),
     ):
         run_trace_module(pyfile, func, a, b, o)
@@ -262,7 +264,7 @@ def register_top_level(app: typer.Typer) -> None:
         interactive: bool = typer.Option(
             False, "--interactive", "-i", help="Interactive scan with guided options"
         ),
-        lang: str | None = typer.Option(
+        lang: Optional[str] = typer.Option(
             None,
             "--lang",
             help=(

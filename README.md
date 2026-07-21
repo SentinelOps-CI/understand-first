@@ -47,7 +47,7 @@ Large codebases reward familiarity over clarity. Docs drift, static graphs show 
 
 ## What it does
 
-- **Maps** — Python: high-confidence AST call graphs with McCabe complexity and callers (import-gated / return-type factory edges when unique; ambiguous names omit rather than invent). JavaScript/TypeScript: Node TypeScript AST when available (`*-ast`, `ast-cyclomatic`, same-file + relative imports, re-export barrels, and nearest `package.json` `"exports"` subpaths); otherwise regex fallback. Go: `go/ast` when available; otherwise regex. Java: `javalang` when installed; otherwise regex. Rust: `syn` AST when cargo is available (`rust-ast`, `ast-cyclomatic`); otherwise `rust-best-effort` regex — **not** rustc typechecked/Python parity. C#: Roslyn AST when a .NET SDK is available (`csharp-ast`, `ast-cyclomatic`); otherwise `csharp-best-effort` regex — **not** typechecked/Python parity. Unsupported languages are counted and skipped (never scanned as Python or empty fake maps).
+- **Maps** — Python: high-confidence AST call graphs with McCabe complexity and callers (import-gated / return-type factory edges when unique; ambiguous names omit rather than invent). JavaScript/TypeScript: Node TypeScript AST when available (`*-ast`, `ast-cyclomatic`, same-file + relative imports, re-export barrels, and nearest `package.json` `"exports"` subpaths); otherwise regex fallback. Go: `go/ast` when available; otherwise regex. Java: `javalang` when installed; otherwise regex. Rust: `syn` AST when cargo is available (`rust-ast`, `ast-cyclomatic`); otherwise `rust-best-effort` regex — same-file plus invent-free `mod`/`use` edges for unique scanned targets; **not** rustc typechecked/Python parity. C#: Roslyn AST when a .NET SDK is available (`csharp-ast`, `ast-cyclomatic`); otherwise `csharp-best-effort` regex — **not** typechecked/Python parity. Unsupported languages are counted and skipped (never scanned as Python or empty fake maps).
 - **Invariants & effects** — Contract-linked structure and pre/post hints where configured; map `side_effects` tags are AST heuristics on Python, not proven purity (JS maps leave `side_effects` empty).
 - **Hot-path fixtures** — Small, runnable scaffolds tied to real execution.
 - **Reading plans** — Module-oriented summaries and questions before you edit.
@@ -337,7 +337,7 @@ More detail: `docs/usage.md` and `docs/onboarding.md`.
 
 ## Roadmap
 
-- Language adapters: Kotlin, deeper crate-graph Rust resolve, richer C# `using`/project-reference edges, etc. Bare npm package-name resolve stays out of scope by design.
+- Language adapters: Kotlin, deeper crate-graph Rust resolve beyond invent-free `mod`/`use`, richer C# `using`/project-reference edges, etc. Bare npm package-name resolve stays out of scope by design.
 - Map-delta visualizations and richer PR comment flows.
 - Invariant DSL with optional Lean scaffold stubs (presence-only; not compiled).
 - Deeper IDE integration beyond the current VS Code extension.

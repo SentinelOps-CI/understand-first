@@ -5,5 +5,8 @@
   "exports": {
     ".": "./math.js",
     "./mapped": "./exports_target.js"
+  },
+  "imports": {
+    "#hashMapped": "./aliases/hash_mapped.js"
   }
 }

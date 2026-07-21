@@ -12,6 +12,10 @@ The Python analyzer invokes `parse_worker.mjs` via `node` when
 `typescript` package is missing, Understand-First falls back to the
 regex adapter (`javascript-best-effort`).
 
+Wave 29 (AST path): nearest `tsconfig.json` / `jsconfig.json` `paths` and
+`package.json` `"imports"` (`#…`) resolve only when the mapped file is unique.
+Still parse-only — not typechecked; bare npm packages are never invented.
+
 Force paths:
 
 - `UF_JS_ANALYZER=regex` — always regex

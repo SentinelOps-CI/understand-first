@@ -66,7 +66,9 @@ prefer a **Node + TypeScript compiler API** path (`javascript-ast` /
 `npm install` in `cli/ucli/analyzers/js_ast` are available; otherwise they
 **degrade** to the regex adapter (`*-best-effort`, `keyword-heuristic`).
 Force with `UF_JS_ANALYZER=regex|ast|auto`. Relative imports may also resolve via
-re-export barrels and nearest `package.json` `"exports"` subpaths (AST path).
+re-export barrels, nearest `package.json` `"exports"` / `"imports"`, and nearest
+`tsconfig.json` / `jsconfig.json` `paths` aliases when uniquely mapped (AST path;
+still **not** typechecked; bare npm packages are never invented).
 Go (`.go`) prefers **`go/parser`**
 via `go run` in `cli/ucli/analyzers/go_ast` (`go-ast`, `ast-cyclomatic`) when
 Go 1.21+ is on PATH; otherwise `go-best-effort` regex. Force with

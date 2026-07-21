@@ -199,10 +199,9 @@ function collectExports(sourceFile, root, filePath) {
         stmt.moduleSpecifier && ts.isStringLiteral(stmt.moduleSpecifier)
           ? stmt.moduleSpecifier.text
           : null;
-      const resolved =
-        fromSpec && (fromSpec.startsWith("./") || fromSpec.startsWith("../"))
-          ? resolveRelativeModule(root, filePath, fromSpec)
-          : null;
+      const resolved = fromSpec
+        ? resolveMappedModule(root, filePath, fromSpec)
+        : null;
       for (const el of stmt.exportClause.elements) {
         const exportName = el.name.text;
         const imported = el.propertyName ? el.propertyName.text : exportName;
@@ -258,29 +257,263 @@ function collectExports(sourceFile, root, filePath) {
   return { names: [...names], reexports };
 }
 
-function resolveRelativeModule(root, fromFile, spec) {
-  const base = path.resolve(path.dirname(fromFile), spec);
+function tryFileCandidates(root, absBase) {
   const candidates = [
-    base,
-    base + ".js",
-    base + ".mjs",
-    base + ".cjs",
-    base + ".ts",
-    base + ".tsx",
-    base + ".jsx",
-    path.join(base, "index.js"),
-    path.join(base, "index.ts"),
-    path.join(base, "index.mjs"),
+    absBase,
+    absBase + ".js",
+    absBase + ".mjs",
+    absBase + ".cjs",
+    absBase + ".ts",
+    absBase + ".tsx",
+    absBase + ".jsx",
+    path.join(absBase, "index.js"),
+    path.join(absBase, "index.ts"),
+    path.join(absBase, "index.mjs"),
+    path.join(absBase, "index.tsx"),
+    path.join(absBase, "index.jsx"),
   ];
+  const hits = [];
+  const seen = new Set();
   for (const c of candidates) {
-    if (fs.existsSync(c) && fs.statSync(c).isFile()) {
-      return posixRel(root, c);
+    const norm = path.resolve(c);
+    if (seen.has(norm)) continue;
+    seen.add(norm);
+    if (fs.existsSync(norm) && fs.statSync(norm).isFile()) {
+      hits.push(norm);
     }
   }
+  if (hits.length !== 1) return null;
+  return posixRel(root, hits[0]);
+}
+
+function resolveRelativeModule(root, fromFile, spec) {
+  const base = path.resolve(path.dirname(fromFile), spec);
+  const hit = tryFileCandidates(root, base);
+  if (hit) return hit;
   // Wave 22: nearest package.json "exports" for relative subpaths only.
   const viaExports = resolveViaPackageExports(root, fromFile, spec);
   if (viaExports) return viaExports;
   return null;
+}
+
+/**
+ * Wave 29: resolve non-relative specs via nearest package.json "imports"
+ * and/or nearest tsconfig/jsconfig "paths" when the target file is unique.
+ * Still parse-only — no typechecking, no node_modules invent.
+ */
+function resolveMappedModule(root, fromFile, spec) {
+  if (!spec || typeof spec !== "string") return null;
+  if (spec.startsWith("./") || spec.startsWith("../")) {
+    return resolveRelativeModule(root, fromFile, spec);
+  }
+  // Bare relative without ./ is not supported (ambiguous with package names).
+  if (spec.startsWith("#")) {
+    return resolveViaPackageImports(root, fromFile, spec);
+  }
+  // tsconfig/jsconfig paths (e.g. @lib/foo); never bare npm registry packages.
+  return resolveViaTsconfigPaths(root, fromFile, spec);
+}
+
+function findNearestConfig(root, fromFile, names) {
+  const rootAbs = path.resolve(root);
+  let dir = path.dirname(path.resolve(fromFile));
+  while (true) {
+    for (const name of names) {
+      const cand = path.join(dir, name);
+      if (fs.existsSync(cand) && fs.statSync(cand).isFile()) {
+        return cand;
+      }
+    }
+    if (path.resolve(dir) === rootAbs) break;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    if (!dir.startsWith(rootAbs) && dir !== rootAbs) break;
+    dir = parent;
+    if (
+      !path.resolve(dir).startsWith(rootAbs) &&
+      path.resolve(dir) !== rootAbs
+    ) {
+      break;
+    }
+  }
+  return null;
+}
+
+/**
+ * Nearest package.json "imports" (#internal, #lib/*, …) — unique file only.
+ * Does not invent node_modules or conditional multi-target maps.
+ */
+function resolveViaPackageImports(root, fromFile, spec) {
+  if (!spec.startsWith("#")) return null;
+  const pkgJsonPath = findNearestConfig(root, fromFile, ["package.json"]);
+  if (!pkgJsonPath) return null;
+  let pkg;
+  try {
+    pkg = JSON.parse(fs.readFileSync(pkgJsonPath, "utf8"));
+  } catch {
+    return null;
+  }
+  if (!pkg || !pkg.imports || typeof pkg.imports !== "object") return null;
+  const pkgDir = path.dirname(pkgJsonPath);
+  const mapped = applyPathPatterns(pkg.imports, spec);
+  if (!mapped || mapped.length === 0) return null;
+  const hits = [];
+  const seen = new Set();
+  for (const target of mapped) {
+    if (typeof target !== "string" || !target.startsWith("./")) continue;
+    const abs = path.resolve(pkgDir, target);
+    const rel = tryFileCandidates(root, abs);
+    if (rel && !seen.has(rel)) {
+      seen.add(rel);
+      hits.push(rel);
+    }
+  }
+  return hits.length === 1 ? hits[0] : null;
+}
+
+/**
+ * Nearest tsconfig.json / jsconfig.json compilerOptions.paths (+ baseUrl).
+ * Only exact / single-star patterns; omit when multiple patterns yield
+ * distinct files. Does not merge ``extends`` and does not typecheck.
+ */
+function resolveViaTsconfigPaths(root, fromFile, spec) {
+  const cfgPath = findNearestConfig(root, fromFile, [
+    "tsconfig.json",
+    "jsconfig.json",
+  ]);
+  if (!cfgPath) return null;
+  let cfg;
+  try {
+    cfg = JSON.parse(stripJsonc(fs.readFileSync(cfgPath, "utf8")));
+  } catch {
+    return null;
+  }
+  const opts = (cfg && cfg.compilerOptions) || {};
+  const paths = opts.paths;
+  if (!paths || typeof paths !== "object") return null;
+  const cfgDir = path.dirname(cfgPath);
+  const baseUrl = opts.baseUrl
+    ? path.resolve(cfgDir, String(opts.baseUrl))
+    : cfgDir;
+  const mapped = applyPathPatterns(paths, spec);
+  if (!mapped || mapped.length === 0) return null;
+  const hits = [];
+  const seen = new Set();
+  for (const target of mapped) {
+    if (typeof target !== "string") continue;
+    // Refuse escaping scan root via .. beyond baseUrl when under root.
+    const abs = path.resolve(baseUrl, target);
+    const rootAbs = path.resolve(root);
+    if (!abs.startsWith(rootAbs) && abs !== rootAbs) continue;
+    const rel = tryFileCandidates(root, abs);
+    if (rel && !seen.has(rel)) {
+      seen.add(rel);
+      hits.push(rel);
+    }
+  }
+  return hits.length === 1 ? hits[0] : null;
+}
+
+/** Best-effort strip of line and block comments for tsconfig JSONC. */
+function stripJsonc(text) {
+  let out = "";
+  let i = 0;
+  const n = text.length;
+  while (i < n) {
+    const ch = text[i];
+    if (ch === '"' || ch === "'") {
+      const quote = ch;
+      out += ch;
+      i += 1;
+      while (i < n) {
+        const c = text[i];
+        out += c;
+        i += 1;
+        if (c === "\\" && i < n) {
+          out += text[i];
+          i += 1;
+          continue;
+        }
+        if (c === quote) break;
+      }
+      continue;
+    }
+    if (ch === "/" && i + 1 < n && text[i + 1] === "/") {
+      i += 2;
+      while (i < n && text[i] !== "\n" && text[i] !== "\r") i += 1;
+      continue;
+    }
+    if (ch === "/" && i + 1 < n && text[i + 1] === "*") {
+      i += 2;
+      while (i + 1 < n && !(text[i] === "*" && text[i + 1] === "/")) i += 1;
+      i = Math.min(n, i + 2);
+      continue;
+    }
+    out += ch;
+    i += 1;
+  }
+  return out;
+}
+
+/**
+ * Match Node/TS path-map patterns. Prefer longest pattern prefix when several
+ * match; return candidate target strings (with ``*`` substituted).
+ * Values may be a string or string[].
+ */
+function applyPathPatterns(mapField, spec) {
+  const entries = [];
+  for (const [pattern, raw] of Object.entries(mapField)) {
+    if (typeof pattern !== "string") continue;
+    const targets = Array.isArray(raw)
+      ? raw.filter((t) => typeof t === "string")
+      : typeof raw === "string"
+        ? [raw]
+        : typeof raw === "object" && raw !== null
+          ? // Conditional import map: unique string only
+            (() => {
+              const s = unwrapExportValue(raw);
+              return s ? [s] : [];
+            })()
+          : [];
+    if (targets.length === 0) continue;
+    const star = pattern.indexOf("*");
+    if (star >= 0) {
+      const prefix = pattern.slice(0, star);
+      const suffix = pattern.slice(star + 1);
+      if (
+        spec.startsWith(prefix) &&
+        spec.endsWith(suffix) &&
+        spec.length >= prefix.length + suffix.length
+      ) {
+        const mid = spec.slice(prefix.length, spec.length - suffix.length);
+        entries.push({
+          pattern,
+          prefixLen: prefix.length,
+          targets: targets.map((t) => t.split("*").join(mid)),
+        });
+      }
+    } else if (pattern === spec) {
+      entries.push({ pattern, prefixLen: pattern.length, targets });
+    }
+  }
+  if (entries.length === 0) return [];
+  // Longest prefix wins (TypeScript-ish); if ties with different targets, fail closed.
+  entries.sort((a, b) => b.prefixLen - a.prefixLen);
+  const bestLen = entries[0].prefixLen;
+  const best = entries.filter((e) => e.prefixLen === bestLen);
+  const allTargets = [];
+  const seen = new Set();
+  for (const e of best) {
+    for (const t of e.targets) {
+      if (!seen.has(t)) {
+        seen.add(t);
+        allTargets.push(t);
+      }
+    }
+  }
+  // Multiple distinct pattern ties → ambiguous unless they share one target.
+  if (best.length > 1 && allTargets.length > 1) return [];
+  return allTargets;
 }
 
 /**
@@ -400,13 +633,22 @@ function unwrapExportValue(val) {
   return null;
 }
 
+function trackableSpecifier(spec, resolved) {
+  if (spec.startsWith("./") || spec.startsWith("../") || spec.startsWith("#")) {
+    return true;
+  }
+  // Non-relative aliases only when path-mapping uniquely resolved a file.
+  return Boolean(resolved);
+}
+
 function collectRelativeImports(sourceFile, root, filePath) {
   const imports = [];
   for (const stmt of sourceFile.statements) {
     if (!ts.isImportDeclaration(stmt) || !stmt.moduleSpecifier) continue;
     if (!ts.isStringLiteral(stmt.moduleSpecifier)) continue;
     const spec = stmt.moduleSpecifier.text;
-    if (!spec.startsWith("./") && !spec.startsWith("../")) continue;
+    const resolved = resolveMappedModule(root, filePath, spec);
+    if (!trackableSpecifier(spec, resolved)) continue;
     const bindings = {};
     const clause = stmt.importClause;
     if (clause) {
@@ -421,7 +663,7 @@ function collectRelativeImports(sourceFile, root, filePath) {
     }
     imports.push({
       specifier: spec,
-      resolved: resolveRelativeModule(root, filePath, spec),
+      resolved,
       bindings,
     });
   }
@@ -434,7 +676,8 @@ function collectRelativeImports(sourceFile, root, filePath) {
       ts.isStringLiteral(node.arguments[0])
     ) {
       const spec = node.arguments[0].text;
-      if (spec.startsWith("./") || spec.startsWith("../")) {
+      const resolved = resolveMappedModule(root, filePath, spec);
+      if (trackableSpecifier(spec, resolved)) {
         const parent = node.parent;
         const bindings = {};
         if (
@@ -446,7 +689,7 @@ function collectRelativeImports(sourceFile, root, filePath) {
         }
         imports.push({
           specifier: spec,
-          resolved: resolveRelativeModule(root, filePath, spec),
+          resolved,
           bindings,
         });
       }

@@ -1,0 +1,9 @@
+{
+  "name": "js-toy-exports",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./math.js",
+    "./mapped": "./exports_target.js"
+  }
+}

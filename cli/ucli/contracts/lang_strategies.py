@@ -1,5 +1,4 @@
 import re
-from typing import List, Tuple
 
 
 def strategy_for_java_type(t: str) -> str:
@@ -24,7 +23,7 @@ def strategy_for_java_type(t: str) -> str:
     return "st.none()"
 
 
-def infer_java_method_args(src: str) -> List[Tuple[str, str]]:
+def infer_java_method_args(src: str) -> list[tuple[str, str]]:
     # naive regex for: public static Return foo(Type a, Type2 b)
     m = re.search(r"\b(\w+)\s*\(([^)]*)\)", src)
     if not m:
@@ -32,7 +31,7 @@ def infer_java_method_args(src: str) -> List[Tuple[str, str]]:
     params = m.group(2).strip()
     if not params:
         return []
-    out: List[Tuple[str, str]] = []
+    out: list[tuple[str, str]] = []
     for part in params.split(","):
         part = part.strip()
         pm = re.match(r"([\w<>?, ]+)\s+(\w+)$", part)
@@ -64,7 +63,7 @@ def strategy_for_csharp_type(t: str) -> str:
     return "st.none()"
 
 
-def infer_csharp_method_args(src: str) -> List[Tuple[str, str]]:
+def infer_csharp_method_args(src: str) -> list[tuple[str, str]]:
     # naive: public static Return Foo(Type a, Type2 b)
     m = re.search(r"\b(\w+)\s*\(([^)]*)\)", src)
     if not m:
@@ -72,7 +71,7 @@ def infer_csharp_method_args(src: str) -> List[Tuple[str, str]]:
     params = m.group(2).strip()
     if not params:
         return []
-    out: List[Tuple[str, str]] = []
+    out: list[tuple[str, str]] = []
     for part in params.split(","):
         part = part.strip()
         pm = re.match(r"([\w<>?, ]+)\s+(\w+)$", part)
